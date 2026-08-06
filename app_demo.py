@@ -16,16 +16,13 @@ st.title("🏗️ HỆ THỐNG QUẢN LÝ & BÁO CÁO TIẾN ĐỘ THI CÔNG 5G"
 st.markdown("Hệ thống đọc trực tiếp toàn bộ dữ liệu từ file Excel chuẩn.")
 st.markdown("---")
 
-EXCEL_FILE = "test file.xlsx"
+EXCEL_FILE = "test_file.xlsx"
 
 @st.cache_data
 def load_data(file_path):
     if not os.path.exists(file_path):
         return None
-    # Đọc trực tiếp file không cần skiprows vì dữ liệu bắt đầu ngay từ dòng đầu tiên
     df = pd.read_excel(file_path, sheet_name="Sheet1", header=None)
-    
-    # Định nghĩa các cột chuẩn tương ứng với file test file.xlsx
     cols = [
         "STT", "MaTram", "Ma5G", "KhuVuc", "GiaoTrienKhai", "DoiTac", 
         "TrangThai", "MaCongTrinh", "Network", 
@@ -77,4 +74,4 @@ if os.path.exists(EXCEL_FILE):
             st.dataframe(summary, use_container_width=True)
             st.bar_chart(summary.set_index("Đối tác"))
 else:
-    st.error(f"⚠️ Không tìm thấy file `{EXCEL_FILE}` trên kho chứa GitHub. Vui lòng tải file `test file.xlsx` lên GitHub cùng thư mục với file app_demo.py!")
+    st.error(f"⚠️ Không tìm thấy file `{EXCEL_FILE}` trên kho chứa GitHub. Vui lòng tải file `test_file.xlsx` lên GitHub cùng thư mục với file app_demo.py!")
