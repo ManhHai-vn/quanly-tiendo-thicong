@@ -81,12 +81,11 @@ if os.path.exists(EXCEL_FILE):
         st.markdown(f"**Kết quả tìm kiếm:** Tìm thấy {len(result)} trạm phù hợp.")
         st.dataframe(result, use_container_width=True)
 
-    # 3. Tab Báo cáo theo ngày mới
+    # 3. Tab Báo cáo theo ngày
     elif choice == "📅 3. Báo cáo Chi tiết theo Ngày":
         st.subheader("📅 Báo cáo Sản lượng và Tiến độ theo Ngày")
-        st.markdown("Chọn mốc thời gian hoặc cột mốc công việc để lọc danh sách các trạm thực hiện trong ngày.")
+        st.markdown("Chọn mốc công việc để lọc danh sách các trạm đã thực hiện.")
         
-        # Chọn cột mốc thời gian cần kiểm tra báo cáo
         date_columns = {
             "YCVT Chuyển kho": "YCVT_ChuyenKho",
             "Cấp TB về kho tỉnh": "CapTB_KhoTinh",
@@ -99,14 +98,11 @@ if os.path.exists(EXCEL_FILE):
         selected_milestone_label = st.selectbox("📌 Chọn mốc công việc báo cáo:", list(date_columns.keys()))
         col_name = date_columns[selected_milestone_label]
         
-        # Lọc các dòng có dữ liệu ở cột mốc này
         df_filtered = df_data[df_data[col_name].notna()].copy()
         
         if not df_filtered.empty:
-            # Chuyển đổi sang định dạng chuỗi ngày tháng để lọc hoặc hiển thị
-            st.success(, icon="📊")
+            st.success(f"Đã lọc thành công các trạm đạt mốc: {selected_milestone_label}")
             
-            # Thống kê nhanh số lượng theo đối tác trong ngày/mốc này
             if "DoiTac" in df_filtered.columns:
                 st.markdown("### 📊 Tổng hợp sản lượng theo Đối tác cho mốc này:")
                 thong_ke_ngay = df_filtered["DoiTac"].value_counts().reset_index()
