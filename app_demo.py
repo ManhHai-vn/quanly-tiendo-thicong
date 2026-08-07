@@ -1,19 +1,19 @@
 import streamlit as st
 import pandas as pd
 import os
+from datetime import datetime
 
-st.set_page_config(page_title="Quản lý Tiến độ Thi công 5G", layout="wide")
+st.set_page_config(page_title="Cổng Báo cáo Tiến độ Đối tác", layout="wide")
 
 st.markdown("""
     <style>
     .main { background-color: #f4f6f9; }
-    .stButton>button { width: 100%; background-color: #0056b3; color: white; font-weight: bold; border-radius: 6px; }
-    .stMetric { background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .stButton>button { width: 100%; background-color: #28a745; color: white; font-weight: bold; border-radius: 6px; }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🏗️ HỆ THỐNG QUẢN LÝ & BÁO CÁO TIẾN ĐỘ THI CÔNG 5G")
-st.markdown("Hệ thống quản lý tiến độ, theo dõi hiện trường và báo cáo ngày chi tiết.")
+st.title("🛠️ CỔNG CẬP NHẬT TIẾN ĐỘ THI CÔNG - DÀNH CHO ĐỐI TÁC")
+st.markdown("Chọn trạm cần cập nhật, tích chọn các mốc hoàn thành và bấm lưu để cập nhật vào dữ liệu.")
 st.markdown("---")
 
 EXCEL_FILE = "test_file.xlsx"
@@ -33,98 +33,103 @@ def load_data(file_path):
         df.columns = cols
     return df
 
+# Đọc dữ liệu
 if os.path.exists(EXCEL_FILE):
-    df_data = load_data(EXCEL_FILE)
+    # Dùng st.session_state để lưu dữ liệu tạm thời khi cập nhật trực tiếp
+    if 'df_data' not in st.session_state:
+        st.session_state.df_data = load_data(EXCEL_FILE)
     
-    menu = [
-        "📊 1. Tổng quan Tiến độ (Dashboard)", 
-        "🔍 2. Tra cứu & Lọc Trạm Hiện Trường", 
-        "📅 3. Báo cáo Chi tiết theo Ngày",
-        "📈 4. Tổng hợp Khối lượng theo Đối tác"
-    ]
-    choice = st.sidebar.selectbox("📂 Chọn chức năng nghiệp vụ", menu)
+    df_data = st.session_state.df_data
 
-    # 1. Dashboard tổng quan
-    if choice == "📊 1. Tổng quan Tiến độ (Dashboard)":
-        st.subheader("📊 Bảng điều khiển tổng quan dự án 5G")
+    # Giao diện tìm kiếm trạm để cập nhật
+    st.subheader("🔍 1. Tìm kiếm trạm cần cập nhật tiến độ")
+    col1, col2 = st.columns(2)
+    with col1:
+        search_tram = st.text_input("Nhập Mã Trạm hoặc Mã 5G cần cập nhật (VD: AGG0019):")
+    with col2:
+        chon_dt = st.selectbox("Lọc theo Đối tác của bạn:", ["Tất cả"] + list(df_data["DoiTac"].dropna().unique()))
+
+    # Lọc danh sách trạm theo từ khóa
+    filtered_df = df_data.copy()
+    if search_tram:
+        filtered_df = filtered_df[
+            filtered_df["MaTram"].astype(str).str.contains(search_tram, case=False, na=False) |
+            filtered_df["Ma5G"].astype(str).str.contains(search_tram, case=False, na=False)
+        ]
+    if chon_dt != "Tất cả":
+        filtered_df = filtered_df[filtered_df["DoiTac"] == chon_dt]
+
+    if not filtered_df.empty:
+        # Chọn trạm cụ thể từ danh sách tìm thấy
+        list_tram_hien_thi = filtered_df["MaTram"].tolist()
+        selected_tram_code = st.selectbox("📌 Chọn chính xác Trạm cần thao tác:", list_tram_hien_thi)
         
-        total_tram = len(df_data)
-        tram_tk = len(df_data[df_data["TrangThai"] == "Triển khai"])
-        tram_dp = len(df_data[df_data["TrangThai"] == "Dự phòng"])
-        tram_lap_dat = df_data["LapTB_5G"].dropna().count()
+        # Lấy thông tin dòng của trạm được chọn
+        tram_row = df_data[df_data["MaTram"] == selected_tram_code].index[0]
+        current_data = df_data.loc[tram_row]
         
-        col1, col2, col3, col4 = st.columns(4)
-        with col1: st.metric(label="Tổng số trạm", value=f"{total_tram}")
-        with col2: st.metric(label="Trạm Triển khai", value=f"{tram_tk}")
-        with col3: st.metric(label="Trạm Dự phòng", value=f"{tram_dp}")
-        with col4: st.metric(label="Đã lắp TB 5G", value=f"{tram_lap_dat}")
+        st.markdown("---")
+        st.subheader(f"📝 2. Cập nhật mốc hiện trường cho trạm: **{selected_tram_code}**")
+        st.info(f"Khu vực: {current_data['KhuVuc']} | Đối tác: {current_data['DoiTac']} | Trạng thái: {current_data['TrangThai']}")
+        
+        with st.form(key="update_form"):
+            # Kiểm tra trạng thái hiện tại (nếu có dữ liệu ngày tháng nghĩa là đã check)
+            val_nhan_vt = pd.notna(current_data["DoiTac_NhanVT"])
+            val_rai_vt = pd.notna(current_data["RaiVT"])
+            val_lap_5g = pd.notna(current_data["LapTB_5G"])
             
-        st.markdown("### 📋 Danh sách tổng hợp tiến độ chi tiết")
+            col_a, col_b, col_c = st.columns(3)
+            with col_a:
+                chk_nhan_vt = st.checkbox("📦 Đối tác đã nhận vật tư", value=val_nhan_vt)
+            with col_b:
+                chk_rai_vt = st.checkbox("🚚 Đã rải thiết bị đến trạm", value=val_rai_vt)
+            with col_c:
+                chk_lap_5g = st.checkbox("⚡ Đã lắp đặt xong TB 5G", value=val_lap_5g)
+                
+            ghichu_date = st.text_input("Ghi chú ngày tháng thực hiện (Để trống sẽ tự động lấy ngày hôm nay DD/MM/YYYY):", value=datetime.now().strftime("%d/%m/%Y"))
+            
+            submit_button = st.form_submit_button(label="💾 Cập nhật và Lưu vào hệ thống")
+            
+            if submit_button:
+                ngay_ghi_nhan = ghichu_date if ghichu_date else datetime.now().strftime("%d/%m/%Y")
+                
+                # Cập nhật giá trị vào DataFrame trong bộ nhớ
+                if chk_nhan_vt:
+                    df_data.at[tram_row, "DoiTac_NhanVT"] = ngay_ghi_nhan
+                else:
+                    df_data.at[tram_row, "DoiTac_NhanVT"] = pd.NA
+                    
+                if chk_rai_vt:
+                    df_data.at[tram_row, "RaiVT"] = ngay_ghi_nhan
+                else:
+                    df_data.at[tram_row, "RaiVT"] = pd.NA
+                    
+                if chk_lap_5g:
+                    df_data.at[tram_row, "LapTB_5G"] = ngay_ghi_nhan
+                else:
+                    df_data.at[tram_row, "LapTB_5G"] = pd.NA
+                
+                # Lưu lại vào session state
+                st.session_state.df_data = df_data
+                
+                # Lưu đè file trên máy (nếu chạy local) hoặc tạo file tải về
+                df_data.to_excel(EXCEL_FILE, sheet_name="Sheet1", index=False, header=False)
+                
+                st.success(f"🎉 Đã cập nhật thành công tiến độ cho trạm {selected_tram_code}!")
+        
+        st.markdown("---")
+        st.subheader("📋 Xem lại bảng dữ liệu sau khi cập nhật:")
         st.dataframe(df_data, use_container_width=True)
-
-    # 2. Tra cứu chi tiết
-    elif choice == "🔍 2. Tra cứu & Lọc Trạm Hiện Trường":
-        st.subheader("🔍 Tra cứu và Lọc danh sách trạm")
         
-        col_a, col_b = st.columns(2)
-        with col_a:
-            keyword = st.text_input("🔍 Nhập mã trạm (VD: AGG0019):")
-        with col_b:
-            selected_dt = st.selectbox("🏢 Lọc theo đối tác", ["Tất cả"] + list(df_data["DoiTac"].dropna().unique()))
-            
-        result = df_data.copy()
-        if keyword:
-            result = result[result["MaTram"].astype(str).str.contains(keyword, case=False, na=False)]
-        if selected_dt != "Tất cả":
-            result = result[result["DoiTac"] == selected_dt]
-            
-        st.markdown(f"**Kết quả tìm kiếm:** Tìm thấy {len(result)} trạm phù hợp.")
-        st.dataframe(result, use_container_width=True)
-
-    # 3. Tab Báo cáo theo ngày
-    elif choice == "📅 3. Báo cáo Chi tiết theo Ngày":
-        st.subheader("📅 Báo cáo Sản lượng và Tiến độ theo Ngày")
-        st.markdown("Chọn mốc công việc để lọc danh sách các trạm đã thực hiện.")
+        # Nút tải file Excel mới nhất về máy để đồng bộ
+        st.download_button(
+            label="📥 Tải file Excel mới nhất về máy",
+            data=open(EXCEL_FILE, "rb").read(),
+            file_name="test_file_updated.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
         
-        date_columns = {
-            "YCVT Chuyển kho": "YCVT_ChuyenKho",
-            "Cấp TB về kho tỉnh": "CapTB_KhoTinh",
-            "Viết phiếu cho đối tác": "VietPhieu",
-            "Đối tác nhận vật tư": "DoiTac_NhanVT",
-            "Rải VT đến trạm": "RaiVT",
-            "Lắp TB 5G": "LapTB_5G"
-        }
-        
-        selected_milestone_label = st.selectbox("📌 Chọn mốc công việc báo cáo:", list(date_columns.keys()))
-        col_name = date_columns[selected_milestone_label]
-        
-        df_filtered = df_data[df_data[col_name].notna()].copy()
-        
-        if not df_filtered.empty:
-            st.success(f"Đã lọc thành công các trạm đạt mốc: {selected_milestone_label}")
-            
-            if "DoiTac" in df_filtered.columns:
-                st.markdown("### 📊 Tổng hợp sản lượng theo Đối tác cho mốc này:")
-                thong_ke_ngay = df_filtered["DoiTac"].value_counts().reset_index()
-                thong_ke_ngay.columns = ["Đối tác", "Số lượng trạm"]
-                st.dataframe(thong_ke_ngay, use_container_width=True)
-            
-            st.markdown("### 📋 Danh sách chi tiết các trạm:")
-            st.dataframe(df_filtered[["STT", "MaTram", "Ma5G", "KhuVuc", "DoiTac", "TrangThai", col_name, "MaCongTrinh"]], use_container_width=True)
-        else:
-            st.warning(f"Chưa có dữ liệu ghi nhận cho mốc công việc: {selected_milestone_label}")
-
-    # 4. Tổng hợp theo đối tác
-    elif choice == "📈 4. Tổng hợp Khối lượng theo Đối tác":
-        st.subheader("📈 Phân tích khối lượng công việc theo Đối tác")
-        if "DoiTac" in df_data.columns:
-            summary = df_data.groupby("DoiTac").agg(
-                Tong_Trang=("MaTram", "count"),
-                Triển_Khai=("TrangThai", lambda x: (x == "Triển khai").sum()),
-                Đã_Lắp_5G=("LapTB_5G", lambda x: x.dropna().count())
-            ).reset_index()
-            
-            st.dataframe(summary, use_container_width=True)
-            st.bar_chart(summary.set_index("DoiTac")[["Tong_Trang", "Đã_Lắp_5G"]])
+    else:
+        st.warning("Không tìm thấy trạm phù hợp với từ khóa bạn nhập.")
 else:
-    st.error(f"⚠️ Không tìm thấy file `{EXCEL_FILE}` trên kho chứa GitHub. Vui lòng tải file Excel lên kho chứa!")
+    st.error(f"⚠️ Không tìm thấy file `{EXCEL_FILE}` trên GitHub!")
