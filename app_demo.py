@@ -13,7 +13,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🏗️ HỆ THỐNG QUẢN LÝ & BÁO CÁO TIẾN ĐỘ THI CÔNG 5G")
-st.markdown("Hệ thống đọc trực tiếp toàn bộ dữ liệu từ file Excel chuẩn.")
+st.markdown("Hệ thống quản lý tiến độ, theo dõi hiện trường và báo cáo ngày chi tiết.")
 st.markdown("---")
 
 EXCEL_FILE = "test_file.xlsx"
@@ -36,42 +36,99 @@ def load_data(file_path):
 if os.path.exists(EXCEL_FILE):
     df_data = load_data(EXCEL_FILE)
     
-    menu = ["📊 1. Tổng quan Dự án (Dashboard)", "🔍 2. Tra cứu Chi tiết Trạm", "📈 3. Tổng hợp theo Đối tác"]
-    choice = st.sidebar.selectbox("📂 Chọn chức năng quản lý", menu)
+    menu = [
+        "📊 1. Tổng quan Tiến độ (Dashboard)", 
+        "🔍 2. Tra cứu & Lọc Trạm Hiện Trường", 
+        "📅 3. Báo cáo Chi tiết theo Ngày",
+        "📈 4. Tổng hợp Khối lượng theo Đối tác"
+    ]
+    choice = st.sidebar.selectbox("📂 Chọn chức năng nghiệp vụ", menu)
 
-    if choice == "📊 1. Tổng quan Dự án (Dashboard)":
-        st.subheader("📊 Bảng điều khiển tổng quan tiến độ toàn dự án")
+    # 1. Dashboard tổng quan
+    if choice == "📊 1. Tổng quan Tiến độ (Dashboard)":
+        st.subheader("📊 Bảng điều khiển tổng quan dự án 5G")
         
         total_tram = len(df_data)
-        tram_trien_khai = len(df_data[df_data["TrangThai"] == "Triển khai"])
-        tram_du_phong = len(df_data[df_data["TrangThai"] == "Dự phòng"])
+        tram_tk = len(df_data[df_data["TrangThai"] == "Triển khai"])
+        tram_dp = len(df_data[df_data["TrangThai"] == "Dự phòng"])
+        tram_lap_dat = df_data["LapTB_5G"].dropna().count()
         
-        col1, col2, col3 = st.columns(3)
-        with col1: st.metric(label="Tổng số trạm", value=f"{total_tram} trạm")
-        with col2: st.metric(label="Trạm Triển khai", value=f"{tram_trien_khai} trạm")
-        with col3: st.metric(label="Trạm Dự phòng", value=f"{tram_du_phong} trạm")
+        col1, col2, col3, col4 = st.columns(4)
+        with col1: st.metric(label="Tổng số trạm", value=f"{total_tram}")
+        with col2: st.metric(label="Trạm Triển khai", value=f"{tram_tk}")
+        with col3: st.metric(label="Trạm Dự phòng", value=f"{tram_dp}")
+        with col4: st.metric(label="Đã lắp TB 5G", value=f"{tram_lap_dat}")
             
-        st.markdown("### 📋 Danh sách chi tiết dữ liệu trạm")
+        st.markdown("### 📋 Danh sách tổng hợp tiến độ chi tiết")
         st.dataframe(df_data, use_container_width=True)
 
-    elif choice == "🔍 2. Tra cứu Chi tiết Trạm":
-        st.subheader("🔍 Tra cứu thông tin chi tiết từng trạm")
-        keyword = st.text_input("Nhập mã trạm cần tìm (ví dụ: AGG0019-11):")
+    # 2. Tra cứu chi tiết
+    elif choice == "🔍 2. Tra cứu & Lọc Trạm Hiện Trường":
+        st.subheader("🔍 Tra cứu và Lọc danh sách trạm")
+        
+        col_a, col_b = st.columns(2)
+        with col_a:
+            keyword = st.text_input("🔍 Nhập mã trạm (VD: AGG0019):")
+        with col_b:
+            selected_dt = st.selectbox("🏢 Lọc theo đối tác", ["Tất cả"] + list(df_data["DoiTac"].dropna().unique()))
+            
+        result = df_data.copy()
         if keyword:
-            result = df_data[df_data["MaTram"].astype(str).str.contains(keyword, case=False, na=False)]
-            if not result.empty:
-                st.dataframe(result, use_container_width=True)
-            else:
-                st.warning("Không tìm thấy mã trạm phù hợp!")
-        else:
-            st.info("Vui lòng nhập mã trạm vào ô tìm kiếm ở trên.")
+            result = result[result["MaTram"].astype(str).str.contains(keyword, case=False, na=False)]
+        if selected_dt != "Tất cả":
+            result = result[result["DoiTac"] == selected_dt]
+            
+        st.markdown(f"**Kết quả tìm kiếm:** Tìm thấy {len(result)} trạm phù hợp.")
+        st.dataframe(result, use_container_width=True)
 
-    elif choice == "📈 3. Tổng hợp theo Đối tác":
-        st.subheader("📈 Tổng hợp số lượng trạm theo Đối tác")
+    # 3. Tab Báo cáo theo ngày mới
+    elif choice == "📅 3. Báo cáo Chi tiết theo Ngày":
+        st.subheader("📅 Báo cáo Sản lượng và Tiến độ theo Ngày")
+        st.markdown("Chọn mốc thời gian hoặc cột mốc công việc để lọc danh sách các trạm thực hiện trong ngày.")
+        
+        # Chọn cột mốc thời gian cần kiểm tra báo cáo
+        date_columns = {
+            "YCVT Chuyển kho": "YCVT_ChuyenKho",
+            "Cấp TB về kho tỉnh": "CapTB_KhoTinh",
+            "Viết phiếu cho đối tác": "VietPhieu",
+            "Đối tác nhận vật tư": "DoiTac_NhanVT",
+            "Rải VT đến trạm": "RaiVT",
+            "Lắp TB 5G": "LapTB_5G"
+        }
+        
+        selected_milestone_label = st.selectbox("📌 Chọn mốc công việc báo cáo:", list(date_columns.keys()))
+        col_name = date_columns[selected_milestone_label]
+        
+        # Lọc các dòng có dữ liệu ở cột mốc này
+        df_filtered = df_data[df_data[col_name].notna()].copy()
+        
+        if not df_filtered.empty:
+            # Chuyển đổi sang định dạng chuỗi ngày tháng để lọc hoặc hiển thị
+            st.success(, icon="📊")
+            
+            # Thống kê nhanh số lượng theo đối tác trong ngày/mốc này
+            if "DoiTac" in df_filtered.columns:
+                st.markdown("### 📊 Tổng hợp sản lượng theo Đối tác cho mốc này:")
+                thong_ke_ngay = df_filtered["DoiTac"].value_counts().reset_index()
+                thong_ke_ngay.columns = ["Đối tác", "Số lượng trạm"]
+                st.dataframe(thong_ke_ngay, use_container_width=True)
+            
+            st.markdown("### 📋 Danh sách chi tiết các trạm:")
+            st.dataframe(df_filtered[["STT", "MaTram", "Ma5G", "KhuVuc", "DoiTac", "TrangThai", col_name, "MaCongTrinh"]], use_container_width=True)
+        else:
+            st.warning(f"Chưa có dữ liệu ghi nhận cho mốc công việc: {selected_milestone_label}")
+
+    # 4. Tổng hợp theo đối tác
+    elif choice == "📈 4. Tổng hợp Khối lượng theo Đối tác":
+        st.subheader("📈 Phân tích khối lượng công việc theo Đối tác")
         if "DoiTac" in df_data.columns:
-            summary = df_data["DoiTac"].value_counts(dropna=False).reset_index()
-            summary.columns = ["Đối tác", "Số lượng trạm"]
+            summary = df_data.groupby("DoiTac").agg(
+                Tong_Trang=("MaTram", "count"),
+                Triển_Khai=("TrangThai", lambda x: (x == "Triển khai").sum()),
+                Đã_Lắp_5G=("LapTB_5G", lambda x: x.dropna().count())
+            ).reset_index()
+            
             st.dataframe(summary, use_container_width=True)
-            st.bar_chart(summary.set_index("Đối tác"))
+            st.bar_chart(summary.set_index("DoiTac")[["Tong_Trang", "Đã_Lắp_5G"]])
 else:
-    st.error(f"⚠️ Không tìm thấy file `{EXCEL_FILE}` trên kho chứa GitHub. Vui lòng tải file `test_file.xlsx` lên GitHub cùng thư mục với file app_demo.py!")
+    st.error(f"⚠️ Không tìm thấy file `{EXCEL_FILE}` trên kho chứa GitHub. Vui lòng tải file Excel lên kho chứa!")
