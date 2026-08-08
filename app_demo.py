@@ -5,7 +5,7 @@ st.set_page_config(page_title="Hệ thống Quản lý Tiến độ 5G", layout=
 
 GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1XDCtbHuqRmBTNcBAV4VCRw6kgQfVxiowhR-xfObu_0U/edit?usp=sharing"
 
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=2) # Giảm thời gian cache để dữ liệu cập nhật nhanh hơn
 def load_data():
     csv_url = GOOGLE_SHEET_URL.replace("/edit?usp=sharing", "/export?format=csv")
     df = pd.read_csv(csv_url)
@@ -29,7 +29,7 @@ page = st.sidebar.radio("Chọn trang:", ["🛠️ 1. Cổng Báo cáo của Đ�
 # ==========================================
 if page == "🛠️ 1. Cổng Báo cáo của Đối tác":
     st.title("🛠️ CỔNG BÁO CÁO TIẾN ĐỘ THI CÔNG - DÀNH CHO ĐỐI TÁC")
-    st.markdown("Kỹ sư/Đối tác chọn trạm và cập nhật tình hình thực hiện hiện trường.")
+    st.markdown("Kỹ sư/Đối tác chọn trạm, tích chọn và cập nhật tình hình thực hiện hiện trường.")
     st.markdown("---")
 
     if "Matram" in df_data.columns:
@@ -68,7 +68,8 @@ if page == "🛠️ 1. Cổng Báo cáo của Đối tác":
                 
                 if submit_bao_cao:
                     st.success(f"🎉 Đã ghi nhận báo cáo thành công cho trạm {tram_chon}!")
-                    st.markdown(f"👉 [Bấm vào đây để mở trực tiếp Google Sheets cập nhật nhanh dòng trạm {tram_chon}]({GOOGLE_SHEET_URL})")
+                    st.warning("👉 Để hệ thống tổng hợp số liệu, vui lòng bấm vào link bên dưới để điền/tích chọn nhanh vào dòng tương ứng trên Google Sheets:")
+                    st.markdown(f"🔗 **[Mở Google Sheets tại đây để hoàn tất lưu dữ liệu]({GOOGLE_SHEET_URL})**")
         else:
             st.warning("Không tìm thấy trạm phù hợp.")
 
@@ -80,10 +81,17 @@ elif page == "📊 2. Trang Quản lý & Dashboard":
     st.markdown("Dành cho Chỉ huy trưởng/Quản lý theo dõi tổng quan tiến độ toàn dự án.")
     st.markdown("---")
 
+    # Nút làm mới dữ liệu thủ công ngay lập tức
+    col_rf1, col_rf2 = st.columns([1, 4])
+    with col_rf1:
+        if st.button("🔄 Làm mới dữ liệu"):
+            st.cache_data.clear()
+            st.rerun()
+    with col_rf2:
+        st.info("Bấm nút 'Làm mới dữ liệu' sau khi bạn cập nhật xong trên Google Sheets để số liệu hiển thị ngay.")
+
     tong_tram = len(df_data)
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric(label="Tổng số trạm trong dự án", value=tong_tram)
+    st.metric(label="Tổng số trạm trong dự án", value=tong_tram)
     
     st.markdown("### 📈 Báo cáo Lắp đặt theo từng Đối tác")
     if "DoiTac" in df_data.columns and "LapTB_5G" in df_data.columns:
