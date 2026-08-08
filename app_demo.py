@@ -4,7 +4,6 @@ import gspread
 import pandas as pd
 import streamlit as st
 
-# Cấu hình kết nối Google Sheets
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
@@ -24,17 +23,12 @@ try:
   spreadsheet_name = "thi cong 5G-2026"
   sheet = client.open(spreadsheet_name).sheet1
 except Exception as e:
-  st.error(
-      f"Lỗi kết nối Google Sheets: {e}. Hãy kiểm tra lại tên file hoặc quyền chia"
-      f" sẻ."
-  )
+  st.error(f"Lỗi kết nối Google Sheets: {e}")
 
 st.title("Hệ thống Quản lý Tiến độ 5G")
 
-# Thiết lập giao diện gồm 2 Tab
 tab_quanly, tab_baocaongay = st.tabs(["📊 Quản lý", "📅 Báo cáo ngày"])
 
-# --- TAB 1: QUẢN LÝ ---
 with tab_quanly:
   with st.form("milestone_form"):
     station_code = st.text_input("Mã trạm / Vị trí", value="KGG0250-11")
@@ -62,14 +56,9 @@ with tab_quanly:
         ]
         sheet.append_row(row_data)
         st.success(f"Đã ghi nhận báo cáo cho trạm {station_code}!")
-        st.warning(
-            "Sau khi bấm gửi, bạn hãy vào trực tiếp file Google Sheets để tích"
-            " chọn lưu chính thức lên hệ thống trực tuyến."
-        )
       else:
         st.warning("Vui lòng nhập mã trạm hoặc vị trí!")
 
-# --- TAB 2: BÁO CÁO NGÀY ---
 with tab_baocaongay:
   st.subheader("📅 Dữ liệu báo cáo trên Google Sheets")
 
