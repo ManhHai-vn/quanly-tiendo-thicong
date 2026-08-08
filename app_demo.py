@@ -2,7 +2,6 @@ from google.oauth2.service_account import Credentials
 import gspread
 import streamlit as st
 
-# 1. Cấu hình quyền và xác thực từ st.secrets
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
@@ -11,16 +10,15 @@ scope = [
 
 @st.cache_resource
 def connect_to_gsheets():
+  # Đọc trực tiếp dictionary từ secrets
   creds_dict = dict(st.secrets["gcp_service_account"])
   creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
   client = gspread.authorize(creds)
   return client
 
 
-# 2. Kết nối và mở Google Sheets
 try:
   client = connect_to_gsheets()
-  # Thay "Tên_Google_Sheet_Của_Bạn" bằng tên chính xác file Google Sheets của bạn
   spreadsheet_name = "thi cong 5G-2026"
   sheet = client.open(spreadsheet_name).sheet1
 except Exception as e:
@@ -29,7 +27,6 @@ except Exception as e:
       f" sẻ cho email: {st.secrets['gcp_service_account']['client_email']}"
   )
 
-# 3. Giao diện nhập liệu ví dụ
 st.title("Hệ thống Quản lý Tiến độ 5G")
 
 with st.form("baocao_form"):
@@ -40,7 +37,6 @@ with st.form("baocao_form"):
 
   if submit_button:
     if station_name:
-      # Dữ liệu muốn đẩy lên hàng mới trong Google Sheets
       row_data = [station_name, f"{progress}%", note]
       sheet.append_row(row_data)
       st.success(f"Đã lưu thành công báo cáo cho trạm: {station_name}!")
