@@ -1,8 +1,10 @@
+from datetime import datetime
 from google.oauth2.service_account import Credentials
 import gspread
+import pandas as pd
 import streamlit as st
 
-# 1. Cấu hình quyền và kết nối Google Sheets
+# Cấu hình kết nối Google Sheets
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
@@ -24,57 +26,62 @@ try:
 except Exception as e:
   st.error(
       f"Lỗi kết nối Google Sheets: {e}. Hãy kiểm tra lại tên file hoặc quyền chia"
-      f" sẻ cho email: {st.secrets['gcp_service_account']['client_email']}"
+      f" sẻ."
   )
 
-# 2. Tiêu đề ứng dụng
 st.title("Hệ thống Quản lý Tiến độ 5G")
 
-# 3. Tạo 2 Tab chính
+# Thiết lập giao diện gồm 2 Tab
 tab_quanly, tab_baocaongay = st.tabs(["📊 Quản lý", "📅 Báo cáo ngày"])
 
-# --- TAB 1: QUẢN LÝ (Nhập liệu) ---
+# --- TAB 1: QUẢN LÝ ---
 with tab_quanly:
-  st.subheader("Nhập thông tin tiến độ trạm")
+  with st.form("milestone_form"):
+    station_code = st.text_input("Mã trạm / Vị trí", value="KGG0250-11")
 
-  with st.form("baocao_form"):
-    station_name = st.text_input("Tên trạm / Vị trí (VD: KGG0250)")
-    progress = st.slider("Tiến độ hoàn thành (%)", 0, 100, 0)
-    note = st.text_area("Ghi chú công việc")
-    submit_button = st.form_submit_button(label="Gửi báo cáo lên Google Sheets")
+    st.markdown("### Tích chọn các mốc đã hoàn thành:")
+    step1 = st.checkbox("📦 Đối tác đã nhận vật tư", value=True)
+    step2 = st.checkbox("🚚 Đã rải thiết bị đến trạm", value=True)
+    step3 = st.checkbox("⚡ Đã lắp đặt xong thiết bị 5G", value=True)
+
+    default_date = datetime.now().strftime("%d/%m/%Y")
+    date_str = st.text_input(
+        "Nhập ngày thực hiện (DD/MM/YYYY):", value=default_date
+    )
+
+    submit_button = st.form_submit_button(label="🚀 Gửi Báo Cáo Tiến Độ")
 
     if submit_button:
-      if station_name:
-        row_data = [station_name, f"{progress}%", note]
+      if station_code:
+        row_data = [
+            station_code,
+            "Đã nhận" if step1 else "Chưa",
+            "Đã rải" if step2 else "Chưa",
+            "Đã lắp" if step3 else "Chưa",
+            date_str,
+        ]
         sheet.append_row(row_data)
-        st.success(f"Đã lưu thành công báo cáo cho trạm: {station_name}!")
+        st.success(f"Đã ghi nhận báo cáo cho trạm {station_code}!")
+        st.warning(
+            "Sau khi bấm gửi, bạn hãy vào trực tiếp file Google Sheets để tích"
+            " chọn lưu chính thức lên hệ thống trực tuyến."
+        )
       else:
-        st.warning("Vui lòng nhập tên trạm trước khi gửi!")
+        st.warning("Vui lòng nhập mã trạm hoặc vị trí!")
 
-# --- TAB 2: BÁO CÁO NGÀY (Xem dữ liệu từ Google Sheets) ---
+# --- TAB 2: BÁO CÁO NGÀY ---
 with tab_baocaongay:
-  st.subheader("Dữ liệu báo cáo hiện tại trên Google Sheets")
+  st.subheader("📅 Dữ liệu báo cáo trên Google Sheets")
 
   if st.button("Tải lại dữ liệu"):
     st.cache_data.clear()
 
   try:
-    # Lấy toàn bộ dữ liệu từ Sheet
-    data = sheet.get_all_records()
-    if data:
-      st.dataframe(data, use_container_width=True)
+    data = sheet.get_all_values()
+    if data and len(data) > 0:
+      df = pd.DataFrame(data[1:], columns=data[0])
+      st.dataframe(df, use_container_width=True)
     else:
       st.info("Hiện tại chưa có dữ liệu nào trong bảng.")
   except Exception as e:
-    # Trường hợp sheet chưa có tiêu đề cột dạng chuẩn, lấy dạng danh sách thuần
-    try:
-      raw_data = sheet.get_all_values()
-      if raw_data:
-        import pandas as pd
-
-        df = pd.DataFrame(raw_data[1:], columns=raw_data[0])
-        st.dataframe(df, use_container_width=True)
-      else:
-        st.info("Bảng dữ liệu trống.")
-    except Exception as ex:
-      st.error(f"Không thể đọc dữ liệu từ bảng: {ex}")
+    st.error(f"Không thể đọc dữ liệu: {e}")
