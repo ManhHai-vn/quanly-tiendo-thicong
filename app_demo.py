@@ -1,16 +1,29 @@
 import streamlit as st
 import pandas as pd
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 st.set_page_config(page_title="Hệ thống Quản lý Tiến độ 5G", layout="wide")
 
 GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1XDCtbHuqRmBTNcBAV4VCRw6kgQfVxiowhR-xfObu_0U/edit?usp=sharing"
 
-@st.cache_data(ttl=10)
+# Hàm kết nối và ghi dữ liệu trực tiếp lên Google Sheets bằng public link
+@st.cache_resource
+def get_gspread_client():
+    # Sử dụng kết nối gspread thông qua ủy quyền
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    # Nếu chạy trên Streamlit Cloud, ta dùng kết nối bằng file json hoặc xác thực tự do
+    # Ở đây dùng gspread qua cách truy cập trực tiếp bảng tính công khai (Editor)
+    gc = gspread.oauth_from_dict({
+        "client_email": st.secrets.get("gcp_service_account", {}).get("client_email", ""),
+        "private_key": st.secrets.get("gcp_service_account", {}).get("private_key", "")
+    }) if "gcp_service_account" in st.secrets else None
+    return gc
+
+@st.cache_data(ttl=5)
 def load_data():
     csv_url = GOOGLE_SHEET_URL.replace("/edit?usp=sharing", "/export?format=csv")
     df = pd.read_csv(csv_url)
-    
-    # Chuẩn hóa tên cột để khớp với logic xử lý
     cols_chuan = [
         "STT", "Matram", "Ma5G", "KhuVuc", "GiaoTrienKhai", "DoiTac", 
         "TrangThai", "MaCongTrinh", "Network", 
@@ -31,7 +44,7 @@ page = st.sidebar.radio("Chọn trang:", ["🛠️ 1. Cổng Báo cáo của Đ�
 # ==========================================
 if page == "🛠️ 1. Cổng Báo cáo của Đối tác":
     st.title("🛠️ CỔNG BÁO CÁO TIẾN ĐỘ THI CÔNG - DÀNH CHO ĐỐI TÁC")
-    st.markdown("Kỹ sư/Đối tác chọn trạm, tìm kiếm và cập nhật tình hình thực hiện hiện trường.")
+    st.markdown("Kỹ sư/Đối tác chọn trạm, tích chọn và hệ thống sẽ tự động lưu lên Google Sheets.")
     st.markdown("---")
 
     if "Matram" in df_data.columns:
@@ -50,7 +63,9 @@ if page == "🛠️ 1. Cổng Báo cáo của Đối tác":
             list_tram = df_hien_thi["Matram"].tolist()
             tram_chon = st.selectbox("📌 Chọn chính xác Mã trạm:", list_tram)
             
-            thong_tin_tram = df_data[df_data["Matram"] == tram_chon].iloc[0]
+            # Lấy thông tin dòng dữ liệu của trạm
+            row_idx_in_df = df_data[df_data["Matram"] == tram_chon].index[0]
+            thong_tin_tram = df_data.loc[row_idx_in_df]
             
             st.info(f"Đang thao tác cho Trạm: **{tram_chon}** | Khu vực: {thong_tin_tram.get('KhuVuc', 'N/A')}")
             
@@ -70,8 +85,35 @@ if page == "🛠️ 1. Cổng Báo cáo của Đối tác":
                 submit_bao_cao = st.form_submit_button("🚀 Gửi Báo Cáo Tiến Độ")
                 
                 if submit_bao_cao:
-                    st.success(f"Đã ghi nhận báo cáo cho trạm {tram_chon}!")
-                    st.warning("⚠️ Sau khi bấm gửi, bạn hãy vào trực tiếp file Google Sheets để tích chọn lưu chính thức lên hệ thống trực tuyến.")
+                    try:
+                        # Kết nối trực tiếp Google Sheets bằng gspread qua URL
+                        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+                        
+                        # Sử dụng st.secrets nếu có, hoặc dùng phương thức kết nối file gspread đơn giản
+                        if "gcp_service_account" in st.secrets:
+                            creds = ServiceAccountCredentials.from_json_keyfile_dict(dict(st.secrets["gcp_service_account"]), scope)
+                            client = gspread.authorize(creds)
+                            sheet = client.open_by_url(GOOGLE_SHEET_URL).sheet1
+                            
+                            # Xác định số dòng trên Google Sheets (Dòng tiêu đề là 1, nên index DataFrame + 2)
+                            sheet_row = row_idx_in_df + 2
+                            
+                            val_nhan_str = ghi_chu_ngay if chk_nhan_vt else ""
+                            val_rai_str = ghi_chu_ngay if chk_rai_vt else ""
+                            val_lap_str = ghi_chu_ngay if chk_lap_5g else ""
+                            
+                            # Cập nhật các cột tương ứng trên Google Sheets
+                            # Cột DoiTac_NhanVT (cột 11), RaiVT (cột 12), LapTB_5G (cột 13)
+                            sheet.update_cell(sheet_row, 11, val_nhan_str)
+                            sheet.update_cell(sheet_row, 12, val_rai_str)
+                            sheet.update_cell(sheet_row, 13, val_lap_str)
+                            
+                            st.success(f"🎉 Đã tự động lưu thành công tiến độ cho trạm {tram_chon} lên Google Sheets!")
+                            st.rerun()
+                        else:
+                            st.error("⚠️ Chưa cấu hình Secrets trên Streamlit Cloud. Hãy dùng tạm cách lưu thủ công hoặc liên hệ để cấu hình khóa bảo mật Google API.")
+                    except Exception as e:
+                        st.error(f"Lỗi khi lưu tự động: {e}")
         else:
             st.warning("Không tìm thấy trạm phù hợp.")
 
@@ -83,31 +125,22 @@ elif page == "📊 2. Trang Quản lý & Dashboard":
     st.markdown("Dành cho Chỉ huy trưởng/Quản lý theo dõi tổng quan tiến độ toàn dự án.")
     st.markdown("---")
 
-    # Chỉ số tổng quan
     tong_tram = len(df_data)
-    
     col1, col2 = st.columns(2)
     with col1:
         st.metric(label="Tổng số trạm trong dự án", value=tong_tram)
     
-    # --- MỤC BÁO CÁO LẮP ĐẶT THEO TỪNG ĐỐI TÁC ---
     st.markdown("### 📈 Báo cáo Lắp đặt theo từng Đối tác")
-    
     if "DoiTac" in df_data.columns and "LapTB_5G" in df_data.columns:
-        # Lọc các dòng có tên đối tác (loại bỏ giá trị trống)
         df_dt = df_data[df_data["DoiTac"].notna() & (df_data["DoiTac"].astype(str).str.strip() != "")]
-        
-        # Nhóm theo đối tác để tính tổng trạm giao và tổng trạm đã lắp
         summary_df = df_dt.groupby("DoiTac").agg(
             Tong_Giao=("Matram", "count"),
             Da_Lap_Dat=("LapTB_5G", lambda x: x.dropna().loc[x.astype(str).str.strip() != ""].count())
         ).reset_index()
         
-        # Tính tỷ lệ hoàn thành (%)
         summary_df["Ty_Le_%"] = (summary_df["Da_Lap_Dat"] / summary_df["Tong_Giao"] * 100).round(1)
         summary_df["Ti_Le_Hien_Thi"] = summary_df["Ty_Le_%"].astype(str) + "%"
         
-        # Sắp xếp hiển thị gọn gàng
         summary_df = summary_df.rename(columns={
             "DoiTac": "Tên Đối Tác",
             "Tong_Giao": "Tổng Trạm Đã Giao",
@@ -122,6 +155,3 @@ elif page == "📊 2. Trang Quản lý & Dashboard":
     st.markdown("---")
     st.markdown("### 📋 Toàn bộ dữ liệu hệ thống (Đồng bộ từ Google Sheets)")
     st.dataframe(df_data, use_container_width=True)
-    
-    st.markdown("### 🔗 Liên kết nhanh:")
-    st.markdown("[Mở file Google Sheets gốc để chỉnh sửa nhanh](https://docs.google.com/spreadsheets/d/1XDCtbHuqRmBTNcBAV4VCRw6kgQfVxiowhR-xfObu_0U/edit?usp=sharing)")
