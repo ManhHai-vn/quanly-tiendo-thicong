@@ -21,7 +21,7 @@ def connect_to_gsheets():
 try:
   client = connect_to_gsheets()
   # Thay "Tên_Google_Sheet_Của_Bạn" bằng tên chính xác file Google Sheets của bạn
-  spreadsheet_name = "Mẫu Báo Cáo Tiến Độ T..."
+  spreadsheet_name = "thi cong 5G-2026"
   sheet = client.open(spreadsheet_name).sheet1
 except Exception as e:
   st.error(
