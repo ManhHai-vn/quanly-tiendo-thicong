@@ -172,9 +172,11 @@ else:
             return False
 
           da_nhan = check_da_lam(
-              "Nhận VT" if "Nhận VT" in df_hien_thi.columns else ""
+              "Nhận vật tư" if "Nhận vật tư" in df_hien_thi.columns else ""
           )
-          da_rai = check_da_lam("Rải TB" if "Rải TB" in df_hien_thi.columns else "")
+          da_rai = check_da_lam(
+              "Rải thiết bị" if "Rải thiết bị" in df_hien_thi.columns else ""
+          )
           da_lap = check_da_lam(
               "Lắp TB 5G" if "Lắp TB 5G" in df_hien_thi.columns else ""
           )
@@ -183,7 +185,9 @@ else:
             st.markdown(
                 "### Tích chọn hoặc cập nhật các mốc tiến độ hoàn thành:"
             )
-            chk_nhan_vt = st.checkbox("📦 Đối tác đã nhận vật tư", value=da_nhan)
+            chk_nhan_vt = st.checkbox(
+                "📦 Đối tác đã nhận vật tư", value=da_nhan
+            )
             chk_rai_vt = st.checkbox(
                 "🚚 Đã rải thiết bị đến trạm", value=da_rai
             )
@@ -228,22 +232,17 @@ else:
       st.markdown("---")
       st.markdown("### 📈 BÁO CÁO TIẾN ĐỘ LẮP ĐẶT THEO TỪNG ĐỐI TÁC")
 
-      # 1. Hiển thị bảng tổng hợp
       summary_df = bll.process_partner_summary(df_data)
       if not summary_df.empty:
         st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
       st.markdown("---")
 
-      # =====================================================================
-      # 2. KHU VỰC THẺ THỐNG KÊ CHI TIẾT THEO MẪU YÊU CẦU
-      # =====================================================================
-
       # Nút Xuất excel tổng
       col_btn_tong, _ = st.columns([2, 8])
       with col_btn_tong:
         output_tong = io.BytesIO()
-        with pd.ExcelWriter(output_tong, engine="xlsxwriter") as writer:
+        with pd.ExcelWriter(output_tong, engine="openpyxl") as writer:
           df_data.to_excel(writer, index=False, sheet_name="TongHop")
         output_tong.seek(0)
 
@@ -259,19 +258,16 @@ else:
 
       st.markdown("<br>", unsafe_allow_html=True)
 
-      # Tự động lấy danh sách các đối tác từ dữ liệu
       ds_doi_tac_thuc_te = []
       if col_dt and col_dt in df_data.columns:
         ds_doi_tac_thuc_te = [
             x for x in df_data[col_dt].dropna().unique() if str(x).strip() != ""
         ]
 
-      # Chia các thẻ đối tác thành 2 cột
       if ds_doi_tac_thuc_te:
         cols = st.columns(2)
         for idx, doi_tac in enumerate(ds_doi_tac_thuc_te):
           with cols[idx % 2]:
-            # Lọc dữ liệu của riêng đối tác này
             df_dt = df_data[
                 df_data[col_dt].astype(str).str.strip().str.upper()
                 == str(doi_tac).upper()
@@ -297,22 +293,23 @@ else:
             lap_tb = count_done(
                 "Lắp TB 5G" if "Lắp TB 5G" in df_dt.columns else ""
             )
-
-            # Tính số trạm chưa lắp (Tổng trạm đã giao - Số trạm đã lắp)
-            tong_tram_giao = len(df_dt)
-            tram_chua_lap = max(0, tong_tram_giao - lap_tb)
+            tram_chua_lap = max(0, tong_giao - lap_tb)
+            ngay_hien_tai = datetime.now().strftime("%d/%m/%Y")
 
             with st.container(border=True):
               st.markdown(f"#### **Đối tác: {doi_tac}**")
               st.markdown(f"📅 **Ngày:** {ngay_hien_tai}")
               st.markdown(f"📋 **Tổng trạm đã giao:** {tong_giao}")
-              st.markdown(f"📦 Nhận thiết bị: {nhan_tb}/{tong_tram}")
-              st.markdown(f"⚡ Lắp đặt thiết bị: {lap_tb}/{tong_tram}")
-              st.markdown(f"⏳ Trạm còn phải lắp: {tram_chua_lap}/{tong_tram}")
+              st.markdown(f"📦 **Nhận thiết bị:** {nhan_tb}/{tong_giao}")
+              st.markdown(
+                  f"⏳ **Trạm còn phải lắp:** {tram_chua_lap}/{tong_giao}"
+              )
+              st.markdown(f"⚡ **Lắp đặt thiết bị:** {lap_tb}/{tong_giao}")
+
               st.markdown("<br>", unsafe_allow_html=True)
 
               output_dt = io.BytesIO()
-              with pd.ExcelWriter(output_dt, engine="xlsxwriter") as writer:
+              with pd.ExcelWriter(output_dt, engine="openpyxl") as writer:
                 df_dt.to_excel(writer, index=False, sheet_name=str(doi_tac))
               output_dt.seek(0)
 
