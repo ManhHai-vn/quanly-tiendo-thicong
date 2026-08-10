@@ -177,6 +177,9 @@ else:
           da_lap = check_da_lam(
               "Lắp TB 5G" if "Lắp TB 5G" in df_hien_thi.columns else ""
           )
+          da_bbnt_lap = check_da_lam(
+              "BBNT Lắp đặt" if "BBNT Lắp đặt" in df_hien_thi.columns else ""
+          )
           da_ps_test = check_da_lam(
               "Phát sóng Test" if "Phát sóng Test" in df_hien_thi.columns else ""
           )
@@ -200,10 +203,14 @@ else:
                 "⚡ Đã lắp đặt xong thiết bị 5G", value=da_lap
             )
 
-            # Chỉ hiển thị thêm mục Phát sóng Test và Phát sóng chính thức nếu là Admin
+            # Các mục bổ sung riêng cho Admin
+            chk_bbnt_lap = False
             chk_ps_test = False
             chk_ps_chinh = False
             if current_role == "admin":
+              chk_bbnt_lap = st.checkbox(
+                  "📝 Đã ký BBNT lắp đặt", value=da_bbnt_lap
+              )
               chk_ps_test = st.checkbox(
                   "📡 Phát sóng test", value=da_ps_test
               )
@@ -227,6 +234,7 @@ else:
                     ghi_chu_ngay,
                     chk_ps_test,
                     chk_ps_chinh,
+                    chk_bbnt_lap,
                 )
               else:
                 status, msg = bll.save_progress(
