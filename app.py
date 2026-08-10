@@ -15,6 +15,16 @@ def get_bll():
 bll = get_bll()
 df_data = bll.get_raw_data()
 
+# Xác định tên cột đối tác an toàn tránh lỗi NameError
+col_dt = None
+if not df_data.empty:
+  for c in ["ĐỐI TÁC", "Đối tác", "doi_tac"]:
+    if c in df_data.columns:
+      col_dt = c
+      break
+  if not col_dt and len(df_data.columns) > 5:
+    col_dt = df_data.columns[5]
+
 # =====================================================================
 # HỆ THỐNG XÁC THỰC VÀ PHÂN QUYỀN (LOGIN & RBAC)
 # =====================================================================
@@ -61,7 +71,6 @@ def login_screen():
 if not st.session_state["authenticated"]:
   login_screen()
 else:
-  # Lấy thông tin phân quyền từ session khi đã đăng nhập thành công
   current_role = st.session_state["role"]
   current_partner = st.session_state["partner_name"]
 
@@ -78,14 +87,12 @@ else:
     st.session_state["partner_name"] = ""
     st.rerun()
 
-  # Cấu hình menu theo phân quyền người dùng
-  if current_role == "admin":
-    menu_options = [
-        "🛠️ 1. Cổng Báo cáo Tiến độ",
-        "📊 2. Trang Quản lý & Dashboard",
-        "📅 3. Lịch Dự Kiến Thi Công",
-    ]
-  else:
+  menu_options = [
+      "🛠️ 1. Cổng Báo cáo Tiến độ",
+      "📊 2. Trang Quản lý & Dashboard",
+      "📅 3. Lịch Dự Kiến Thi Công",
+  ]
+  if current_role != "admin":
     menu_options = [
         "🛠️ 1. Cổng Báo cáo Tiến độ",
         "📅 3. Lịch Dự Kiến Thi Công",
@@ -105,26 +112,26 @@ else:
           & (df_hien_thi["Matram"].astype(str).str.lower() != "nan")
       ]
 
-      col_dt = (
-          "ĐỐI TÁC" if "ĐỐI TÁC" in df_hien_thi.columns else df_hien_thi.columns[5]
-      )
-
       if current_role == "partner":
         st.info(
             f"🔒 Tài khoản thuộc nhà thầu **{current_partner}**: Chỉ hiển thị"
             " các trạm thuộc quyền quản lý."
         )
-        if col_dt in df_hien_thi.columns:
+        if col_dt and col_dt in df_hien_thi.columns:
           df_hien_thi = df_hien_thi[
               df_hien_thi[col_dt].astype(str).str.strip().str.upper()
               == current_partner.upper()
           ]
       else:
-        ds_doi_tac = ["Tất cả"] + list(df_hien_thi[col_dt].dropna().unique())
+        ds_doi_tac = (
+            ["Tất cả"] + list(df_hien_thi[col_dt].dropna().unique())
+            if col_dt and col_dt in df_hien_thi.columns
+            else ["Tất cả"]
+        )
         chon_dt = st.selectbox(
             "🏢 Lọc theo tên Đối tác (Admin):", ds_doi_tac
         )
-        if chon_dt != "Tất cả" and col_dt in df_hien_thi.columns:
+        if chon_dt != "Tất cả" and col_dt and col_dt in df_hien_thi.columns:
           df_hien_thi = df_hien_thi[df_hien_thi[col_dt] == chon_dt]
 
       st.markdown("### 📌 Chọn Mã Trạm cần báo cáo:")
@@ -145,9 +152,7 @@ else:
             "🔍 Gõ hoặc chọn Mã trạm:",
             options=list_hien_thi,
             index=None,
-            placeholder=(
-                "-- Nhấp vào đây để chọn hoặc gõ tìm kiếm mã trạm thuộc quyền --"
-            ),
+            placeholder="-- Nhấp vào đây để chọn hoặc gõ tìm kiếm mã trạm --",
         )
 
         if tram_chon_full:
@@ -158,39 +163,19 @@ else:
               df_hien_thi["Matram"].astype(str) == str(tram_chon)
           ].iloc[0]
 
-          def check_da_lam(ten_cot):
-            if ten_cot in row_hien_tai:
-              val = str(row_hien_tai[ten_cot]).strip()
+          def check_da_lam(ten_col):
+            if ten_col in row_hien_tai:
+              val = str(row_hien_tai[ten_col]).strip()
               return val != "" and val.lower() != "nan" and val != "None"
             return False
 
           da_nhan = check_da_lam(
-              "Nhận VT" if "Nhận VT" in df_hien_thi.columns else df_hien_thi.columns[10]
+              "Nhận VT" if "Nhận VT" in df_hien_thi.columns else ""
           )
-          da_rai = check_da_lam(
-              "Rải TB" if "Rải TB" in df_hien_thi.columns else df_hien_thi.columns[11]
-          )
+          da_rai = check_da_lam("Rải TB" if "Rải TB" in df_hien_thi.columns else "")
           da_lap = check_da_lam(
-              "Lắp TB 5G"
-              if "Lắp TB 5G" in df_hien_thi.columns
-              else df_hien_thi.columns[12]
+              "Lắp TB 5G" if "Lắp TB 5G" in df_hien_thi.columns else ""
           )
-
-          ngay_lap_dat_cu = (
-              str(row_hien_tai["Lắp TB 5G"])
-              if da_lap and "Lắp TB 5G" in row_hien_tai
-              else ""
-          )
-
-          st.info(
-              f"📍 Đang thao tác cho Trạm: **{tram_chon}** — Phường/Xã:"
-              f" **{phuong_hien_tai}**"
-          )
-          if da_lap and ngay_lap_dat_cu:
-            st.success(
-                f"⚡ Trạm này đã hoàn thành lắp đặt thiết bị 5G vào ngày:"
-                f" **{ngay_lap_dat_cu}**"
-            )
 
           with st.form("form_bao_cao_doi_tac"):
             st.markdown(
@@ -226,7 +211,7 @@ else:
         else:
           st.warning("Vui lòng chọn hoặc gõ tìm mã trạm để tiếp tục.")
       else:
-        st.warning("Không tìm thấy trạm nào thuộc quyền quản lý của bạn.")
+        st.warning("Không tìm thấy trạm nào thuộc quyền quản lý.")
     else:
       st.warning("Đang tải dữ liệu từ Google Sheets.")
 
@@ -234,13 +219,10 @@ else:
     st.title("📊 TRANG QUẢN LÝ DỮ LIỆU & ĐIỀU HÀNH DỰ ÁN")
     if not df_data.empty:
       tong_tram = len(df_data)
-      col1, col2 = st.columns(2)
-      with col1:
-        st.metric(label="Tổng số trạm trong dự án", value=tong_tram)
+      st.metric(label="Tổng số trạm trong dự án", value=tong_tram)
 
       st.markdown("---")
       st.markdown("### 📈 BÁO CÁO TIẾN ĐỘ LẮP ĐẶT THEO TỪNG ĐỐI TÁC")
-
       summary_df = bll.process_partner_summary(df_data)
       if not summary_df.empty:
         st.dataframe(
@@ -255,43 +237,40 @@ else:
             use_container_width=True,
             hide_index=True,
         )
-      else:
-        st.info("Chưa có dữ liệu đối tác để tổng hợp.")
 
       st.markdown("---")
-      st.markdown("### 📋 Toàn bộ dữ liệu hệ thống (Đồng bộ từ Google Sheets)")
+      st.markdown("### 📋 Toàn bộ dữ liệu hệ thống")
       if st.button("🔄 Làm mới dữ liệu"):
         st.cache_data.clear()
         st.rerun()
       st.dataframe(df_data, use_container_width=True)
-    else:
-      st.warning("Chưa có dữ liệu.")
 
   elif page == "📅 3. Lịch Dự Kiến Thi Công":
     st.title("📅 QUẢN LÝ & LẬP LỊCH DỰ KIẾN THI CÔNG")
     st.markdown("---")
 
     with st.form("form_lap_lich"):
-      st.markdown("### 📝 Thêm lịch dự kiến mới:")
+      st.markdown("### 📝 Cập nhật lịch dự kiến cho trạm:")
       col1, col2, col3 = st.columns(3)
 
       with col1:
         ngay_du_kien = st.date_input("Chọn ngày dự kiến:")
       with col2:
-        # Nếu là nhà thầu, chỉ hiện danh sách trạm của nhà thầu đó
-        if current_role == "partner":
+        if current_role == "partner" and col_dt and col_dt in df_data.columns:
           df_Cua_Partner = df_data[
               df_data[col_dt].astype(str).str.strip().str.upper()
               == current_partner.upper()
           ]
           list_ma_tram = (
               df_Cua_Partner["Matram"].dropna().tolist()
-              if not df_Cua_Partner.empty
+              if not df_Cua_Partner.empty and "Matram" in df_Cua_Partner.columns
               else []
           )
         else:
           list_ma_tram = (
-              df_data["Matram"].dropna().tolist() if not df_data.empty else []
+              df_data["Matram"].dropna().tolist()
+              if not df_data.empty and "Matram" in df_data.columns
+              else []
           )
 
         tram_du_kien = st.selectbox("Chọn trạm dự kiến:", list_ma_tram)
@@ -304,11 +283,8 @@ else:
 
       if submit_lich:
         ngay_str = ngay_du_kien.strftime("%d/%m/%Y")
-        status, msg = bll.tao_lich_du_kien(
-            ngay_str,
-            tram_du_kien,
-            so_doi_thi_cong,
-            st.session_state["username"],
+        status, msg = bll.save_lich_du_kien(
+            tram_du_kien, ngay_str, so_doi_thi_cong
         )
         if status:
           st.success(f"🎉 {msg}")
@@ -317,10 +293,23 @@ else:
           st.error(msg)
 
     st.markdown("---")
-    st.markdown("### 📋 Danh sách lịch dự kiến đã đăng ký")
-    df_lich = bll.get_lich_du_kien()
-    if not df_lich.empty:
-      # Nếu là partner thì chỉ lọc xem lịch của nhà thầu đó (nếu có thông tin)
-      st.dataframe(df_lich, use_container_width=True, hide_index=True)
-    else:
-      st.info("Chưa có lịch dự kiến nào được tạo.")
+    st.markdown("### 📋 Danh sách trạm và lịch dự kiến hiện tại")
+    if not df_data.empty:
+      # Lọc hiển thị các cột quan trọng gồm Mã trạm, Phường xã, Đối tác, Ngày dự kiến, Số đội
+      cols_hien_thi = [
+          c
+          for c in [
+              "Matram",
+              "Mã 5G",
+              "Phường xã",
+              col_dt,
+              "Ngày dự kiến t...",
+              "SoDoi",
+          ]
+          if c and c in df_data.columns
+      ]
+      st.dataframe(
+          df_data[cols_hien_thi] if cols_hien_thi else df_data,
+          use_container_width=True,
+          hide_index=True,
+      )
