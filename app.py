@@ -61,6 +61,7 @@ def login_screen():
 if not st.session_state["authenticated"]:
   login_screen()
 else:
+  # Lấy thông tin phân quyền từ session khi đã đăng nhập thành công
   current_role = st.session_state["role"]
   current_partner = st.session_state["partner_name"]
 
@@ -77,13 +78,18 @@ else:
     st.session_state["partner_name"] = ""
     st.rerun()
 
+  # Cấu hình menu theo phân quyền người dùng
   if current_role == "admin":
     menu_options = [
         "🛠️ 1. Cổng Báo cáo Tiến độ",
         "📊 2. Trang Quản lý & Dashboard",
+        "📅 3. Lịch Dự Kiến Thi Công",
     ]
   else:
-    menu_options = ["🛠️ 1. Cổng Báo cáo Tiến độ"]
+    menu_options = [
+        "🛠️ 1. Cổng Báo cáo Tiến độ",
+        "📅 3. Lịch Dự Kiến Thi Công",
+    ]
 
   page = st.sidebar.radio("Chọn trang:", menu_options)
 
@@ -260,63 +266,61 @@ else:
       st.dataframe(df_data, use_container_width=True)
     else:
       st.warning("Chưa có dữ liệu.")
-# Thêm vào phần menu tùy chọn của app.py (ví dụ thêm trang "📅 3. Lịch Dự Kiến Thi Công")
 
-if current_role == "admin":
-  menu_options = [
-      "🛠️ 1. Cổng Báo cáo Tiến độ",
-      "📊 2. Trang Quản lý & Dashboard",
-      "📅 3. Lịch Dự Kiến Thi Công",
-  ]
-else:
-  menu_options = [
-      "🛠️ 1. Cổng Báo cáo Tiến độ",
-      "📅 3. Lịch Dự Kiến Thi Công",
-  ]
+  elif page == "📅 3. Lịch Dự Kiến Thi Công":
+    st.title("📅 QUẢN LÝ & LẬP LỊCH DỰ KIẾN THI CÔNG")
+    st.markdown("---")
 
-# Xử lý hiển thị trang Lịch Dự Kiến:
-if page == "📅 3. Lịch Dự Kiến Thi Công":
-  st.title("📅 QUẢN LÝ & LẬP LỊCH DỰ KIẾN THI CÔNG")
-  st.markdown("---")
+    with st.form("form_lap_lich"):
+      st.markdown("### 📝 Thêm lịch dự kiến mới:")
+      col1, col2, col3 = st.columns(3)
 
-  # Form lập lịch
-  with st.form("form_lap_lich"):
-    st.markdown("### 📝 Thêm lịch dự kiến mới:")
-    col1, col2, col3 = st.columns(3)
+      with col1:
+        ngay_du_kien = st.date_input("Chọn ngày dự kiến:")
+      with col2:
+        # Nếu là nhà thầu, chỉ hiện danh sách trạm của nhà thầu đó
+        if current_role == "partner":
+          df_Cua_Partner = df_data[
+              df_data[col_dt].astype(str).str.strip().str.upper()
+              == current_partner.upper()
+          ]
+          list_ma_tram = (
+              df_Cua_Partner["Matram"].dropna().tolist()
+              if not df_Cua_Partner.empty
+              else []
+          )
+        else:
+          list_ma_tram = (
+              df_data["Matram"].dropna().tolist() if not df_data.empty else []
+          )
 
-    with col1:
-      ngay_du_kien = st.date_input("Chọn ngày dự kiến:")
-    with col2:
-      # Lấy danh sách mã trạm từ dữ liệu chung
-      list_ma_tram = (
-          df_data["Matram"].dropna().tolist() if not df_data.empty else []
-      )
-      tram_du_kien = st.selectbox("Chọn trạm dự kiến:", list_ma_tram)
-    with col3:
-      so_doi_thi_cong = st.number_input(
-          "Số đội thi công:", min_value=1, max_value=20, value=1
-      )
+        tram_du_kien = st.selectbox("Chọn trạm dự kiến:", list_ma_tram)
+      with col3:
+        so_doi_thi_cong = st.number_input(
+            "Số đội thi công:", min_value=1, max_value=20, value=1
+        )
 
-    submit_lich = st.form_submit_button("🚀 Lưu Lịch Dự Kiến")
+      submit_lich = st.form_submit_button("🚀 Lưu Lịch Dự Kiến")
 
-    if submit_lich:
-      ngay_str = ngay_du_kien.strftime("%d/%m/%Y")
-      status, msg = bll.tao_lich_du_kien(
-          ngay_str,
-          tram_du_kien,
-          so_doi_thi_cong,
-          st.session_state["username"],
-      )
-      if status:
-        st.success(f"🎉 {msg}")
-        st.rerun()
-      else:
-        st.error(msg)
+      if submit_lich:
+        ngay_str = ngay_du_kien.strftime("%d/%m/%Y")
+        status, msg = bll.tao_lich_du_kien(
+            ngay_str,
+            tram_du_kien,
+            so_doi_thi_cong,
+            st.session_state["username"],
+        )
+        if status:
+          st.success(f"🎉 {msg}")
+          st.rerun()
+        else:
+          st.error(msg)
 
-  st.markdown("---")
-  st.markdown("### 📋 Danh sách lịch dự kiến đã đăng ký")
-  df_lich = bll.get_lich_du_kien()
-  if not df_lich.empty:
-    st.dataframe(df_lich, use_container_width=True, hide_index=True)
-  else:
-    st.info("Chưa có lịch dự kiến nào được tạo.")
+    st.markdown("---")
+    st.markdown("### 📋 Danh sách lịch dự kiến đã đăng ký")
+    df_lich = bll.get_lich_du_kien()
+    if not df_lich.empty:
+      # Nếu là partner thì chỉ lọc xem lịch của nhà thầu đó (nếu có thông tin)
+      st.dataframe(df_lich, use_container_width=True, hide_index=True)
+    else:
+      st.info("Chưa có lịch dự kiến nào được tạo.")
