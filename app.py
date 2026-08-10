@@ -202,12 +202,10 @@ else:
             chk_lap_5g = st.checkbox(
                 "⚡ Đã lắp đặt xong thiết bị 5G", value=da_lap
             )
-            # Cho phép cả VTK, VCC và Admin đều tích chọn BBNT lắp đặt
             chk_bbnt_lap = st.checkbox(
                 "📝 Đã ký BBNT lắp đặt", value=da_bbnt_lap
             )
 
-            # Chỉ Admin mới thấy Phát sóng test và Phát sóng chính thức
             chk_ps_test = False
             chk_ps_chinh = False
             if current_role == "admin":
@@ -226,14 +224,14 @@ else:
 
             if submit_bao_cao:
               status, msg = bll.save_progress(
-                  tram_chon,
-                  chk_nhan_vt,
-                  chk_rai_vt,
-                  chk_lap_5g,
-                  ghi_chu_ngay,
-                  chk_ps_test,
-                  chk_ps_chinh,
-                  chk_bbnt_lap,
+                  tram_chon=tram_chon,
+                  chk_nhan_vt=chk_nhan_vt,
+                  chk_rai_vt=chk_rai_vt,
+                  chk_lap_5g=chk_lap_5g,
+                  ngay_thuc_hien=ghi_chu_ngay,
+                  chk_ps_test=chk_ps_test,
+                  chk_ps_chinh=chk_ps_chinh,
+                  chk_bbnt_lap=chk_bbnt_lap,
               )
 
               if status:
