@@ -17,7 +17,6 @@ def get_bll():
 bll = get_bll()
 df_data = bll.get_raw_data()
 
-# Xác định tên cột đối tác an toàn tránh lỗi NameError
 col_dt = None
 if not df_data.empty:
   for c in ["ĐỐI TÁC", "Đối tác", "doi_tac"]:
@@ -159,8 +158,6 @@ else:
 
         if tram_chon_full:
           tram_chon = tram_chon_full.split(" — ")[0]
-          phuong_hien_tai = tram_chon_full.split(" — ")[1]
-
           row_hien_tai = df_hien_thi[
               df_hien_thi["Matram"].astype(str) == str(tram_chon)
           ].iloc[0]
@@ -172,10 +169,10 @@ else:
             return False
 
           da_nhan = check_da_lam(
-              "Nhận vật tư" if "Nhận vật tư" in df_hien_thi.columns else ""
+              "Nhận VT" if "Nhận VT" in df_hien_thi.columns else ""
           )
           da_rai = check_da_lam(
-              "Rải thiết bị" if "Rải thiết bị" in df_hien_thi.columns else ""
+              "Rải TB" if "Rải TB" in df_hien_thi.columns else ""
           )
           da_lap = check_da_lam(
               "Lắp TB 5G" if "Lắp TB 5G" in df_hien_thi.columns else ""
@@ -242,7 +239,7 @@ else:
       col_btn_tong, _ = st.columns([2, 8])
       with col_btn_tong:
         output_tong = io.BytesIO()
-        with pd.ExcelWriter(output_tong, engine="openpyxl") as writer:
+        with pd.ExcelWriter(output_tong) as writer:
           df_data.to_excel(writer, index=False, sheet_name="TongHop")
         output_tong.seek(0)
 
@@ -287,30 +284,58 @@ else:
                 )
               return 0
 
-           # Sửa lại tên cột tìm kiếm cho khớp với Google Sheets là 'Nhận VT'
             nhan_tb = count_done("Nhận VT" if "Nhận VT" in df_dt.columns else "")
             lap_tb = count_done(
                 "Lắp TB 5G" if "Lắp TB 5G" in df_dt.columns else ""
             )
+            bbnt_lap = count_done(
+                "BBNT Lắp đặt" if "BBNT Lắp đặt" in df_dt.columns else ""
+            )
+            phat_song_test = count_done(
+                "Phát sóng Test" if "Phát sóng Test" in df_dt.columns else ""
+            )
+            phat_song_chinh = count_done(
+                "Phát sóng chính thức"
+                if "Phát sóng chính thức" in df_dt.columns
+                else ""
+            )
+
             tram_chua_lap = max(0, tong_giao - lap_tb)
             ngay_hien_tai = datetime.now().strftime("%d/%m/%Y")
 
             with st.container(border=True):
               st.markdown(f"#### **Đối tác: {doi_tac}**")
-              st.markdown(f"📅 **Ngày:** {ngay_hien_tai}")
-              st.markdown(f"📋 **Tổng trạm đã giao:** {tong_giao}")
 
-              # Sắp xếp lại thứ tự theo yêu cầu của bạn (Trạm còn phải lắp xuống dưới cùng)
-              st.markdown(f"📦 **Nhận thiết bị:** {nhan_tb}/{tong_giao}")
-              st.markdown(f"⚡ **Lắp đặt thiết bị:** {lap_tb}/{tong_giao}")
-              st.markdown(
-                  f"⏳ **Trạm còn phải lắp:** {tram_chua_lap}/{tong_giao}"
-              )
+              # Chia 2 cột nhỏ trong thẻ để hiển thị danh sách bên trái và khối trạng thái bên phải
+              sub_col1, sub_col2 = st.columns([1.1, 0.9])
+
+              with sub_col1:
+                st.markdown(f"📅 **Ngày:** {ngay_hien_tai}")
+                st.markdown(f"📋 **Tổng trạm đã giao:** {tong_giao}")
+                st.markdown(f"📦 **Nhận thiết bị:** {nhan_tb}/{tong_giao}")
+                st.markdown(f"⚡ **Lắp đặt thiết bị:** {lap_tb}/{tong_giao}")
+                st.markdown(
+                    f"⏳ **Trạm còn phải lắp:** {tram_chua_lap}/{tong_giao}"
+                )
+
+              with sub_col2:
+                st.markdown(
+                    f"📝 **Đã ký BBNT lắp đặt:**<br>`{bbnt_lap}/{lap_tb}`",
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    f"📡 **Phát sóng test:**<br>`{phat_song_test}/{lap_tb}`",
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    f"🚀 **Phát sóng chính thức:**<br>`{phat_song_chinh}`",
+                    unsafe_allow_html=True,
+                )
 
               st.markdown("<br>", unsafe_allow_html=True)
 
               output_dt = io.BytesIO()
-              with pd.ExcelWriter(output_dt, engine="openpyxl") as writer:
+              with pd.ExcelWriter(output_dt) as writer:
                 df_dt.to_excel(writer, index=False, sheet_name=str(doi_tac))
               output_dt.seek(0)
 
