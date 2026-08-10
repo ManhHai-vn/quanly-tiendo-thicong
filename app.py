@@ -106,7 +106,7 @@ else:
   page = st.sidebar.radio("Chọn trang:", menu_options)
 
   if page == "🛠️ 1. Cổng Báo cáo Tiến độ":
-    st.title("🛠️ CỔNG BÁO CÁO TIẾN ĐỘ THI CÔNG")
+    st.title("🛠️ CỔNG BÁO CÁO & XUẤT DỮ LIỆU TIẾN ĐỘ")
     st.markdown("---")
 
     if not df_data.empty and "Matram" in df_data.columns:
@@ -120,7 +120,7 @@ else:
       if current_role == "partner":
         st.info(
             f"🔒 Tài khoản thuộc nhà thầu **{current_partner}**: Chỉ hiển thị"
-            " các trạm thuộc quyền quản lý."
+            " và quản lý các trạm thuộc quyền."
         )
         if col_dt and col_dt in df_hien_thi.columns:
           df_hien_thi = df_hien_thi[
@@ -139,6 +139,35 @@ else:
         if chon_dt != "Tất cả" and col_dt and col_dt in df_hien_thi.columns:
           df_hien_thi = df_hien_thi[df_hien_thi[col_dt] == chon_dt]
 
+      # Thêm nút Xuất Excel danh sách trạm ngay tại màn hình báo cáo để đối tác dễ đối chiếu
+      st.markdown("---")
+      col_info_ title, col_btn_dl = st.columns([6, 4])
+      with col_info_title:
+        st.markdown(
+            "### 📥 Xuất danh sách trạm & đối soát số liệu của bạn:"
+        )
+      with col_btn_dl:
+        output_partner_excel = io.BytesIO()
+        with pd.ExcelWriter(output_partner_excel) as writer:
+          df_hien_thi.to_excel(
+              writer, index=False, sheet_name="DanhSachTram"
+          )
+        output_partner_excel.seek(0)
+
+        file_name_dl = (
+            f"DanhSach_Tram_{current_partner if current_role == 'partner' else 'TatCa'}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        )
+        st.download_button(
+            label="📥 Tải Excel danh sách trạm",
+            data=output_partner_excel,
+            file_name=file_name_dl,
+            mime=(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            ),
+            use_container_width=True,
+        )
+
+      st.markdown("---")
       st.markdown("### 📌 Chọn Mã Trạm cần báo cáo:")
       if not df_hien_thi.empty:
         col_phuong = (
@@ -247,7 +276,8 @@ else:
                 )
 
                 if status:
-                  st.success(f"🎉 {msg}")
+                  st.success(f"🎉 {msg} - Đang cập nhật hệ thống...")
+                  st.cache_data.clear()
                   st.rerun()
                 else:
                   st.error(msg)
@@ -450,7 +480,8 @@ else:
             tram_du_kien, ngay_str, so_doi_thi_cong
         )
         if status:
-          st.success(f"🎉 {msg}")
+          st.success(f"🎉 {msg} - Đang cập nhật hệ thống...")
+          st.cache_data.clear()
           st.rerun()
         else:
           st.error(msg)
