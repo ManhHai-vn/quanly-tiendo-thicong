@@ -50,3 +50,28 @@ class DataAccessLayer:
     except Exception as e:
       st.error(f"Lỗi ghi dữ liệu: {e}")
       return False
+      # Thêm vào trong class DataAccessLayer (file dal.py)
+
+    def fetch_du_kien(self):
+      try:
+        client = self._get_client()
+        sheet = client.open(self.spreadsheet_name).worksheet(
+            "DuKienThiCong"
+        )  # Gọi sheet riêng
+        data = sheet.get_all_values()
+        if not data or len(data) <= 1:
+          return pd.DataFrame()
+        return pd.DataFrame(data[1:], columns=data[0])
+      except Exception as e:
+        # Nếu chưa có sheet DuKienThiCong thì trả về DataFrame trống tránh lỗi crash app
+        return pd.DataFrame()
+
+    def save_du_kien(self, ngay, matram, so_doi, nguoi_tao):
+      try:
+        client = self._get_client()
+        sheet = client.open(self.spreadsheet_name).worksheet("DuKienThiCong")
+        sheet.append_row([ngay, matram, so_doi, nguoi_tao])
+        return True
+      except Exception as e:
+        st.error(f"Lỗi lưu lịch dự kiến: {e}")
+        return False
