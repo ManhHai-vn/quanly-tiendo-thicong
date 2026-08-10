@@ -177,6 +177,14 @@ else:
           da_lap = check_da_lam(
               "Lắp TB 5G" if "Lắp TB 5G" in df_hien_thi.columns else ""
           )
+          da_ps_test = check_da_lam(
+              "Phát sóng Test" if "Phát sóng Test" in df_hien_thi.columns else ""
+          )
+          da_ps_chinh = check_da_lam(
+              "Phát sóng chính thức"
+              if "Phát sóng chính thức" in df_hien_thi.columns
+              else ""
+          )
 
           with st.form("form_bao_cao_doi_tac"):
             st.markdown(
@@ -192,6 +200,17 @@ else:
                 "⚡ Đã lắp đặt xong thiết bị 5G", value=da_lap
             )
 
+            # Chỉ hiển thị thêm mục Phát sóng Test và Phát sóng chính thức nếu là Admin
+            chk_ps_test = False
+            chk_ps_chinh = False
+            if current_role == "admin":
+              chk_ps_test = st.checkbox(
+                  "📡 Phát sóng test", value=da_ps_test
+              )
+              chk_ps_chinh = st.checkbox(
+                  "🚀 Phát sóng chính thức", value=da_ps_chinh
+              )
+
             ghi_chu_ngay = st.text_input(
                 "Nhập ngày thực hiện (DD/MM/YYYY):",
                 value=pd.Timestamp.now().strftime("%d/%m/%Y"),
@@ -199,13 +218,21 @@ else:
             submit_bao_cao = st.form_submit_button("🚀 Gửi Báo Cáo Tiến Độ")
 
             if submit_bao_cao:
-              status, msg = bll.save_progress(
-                  tram_chon,
-                  chk_nhan_vt,
-                  chk_rai_vt,
-                  chk_lap_5g,
-                  ghi_chu_ngay,
-              )
+              if current_role == "admin":
+                status, msg = bll.save_progress(
+                    tram_chon,
+                    chk_nhan_vt,
+                    chk_rai_vt,
+                    chk_lap_5g,
+                    ghi_chu_ngay,
+                    chk_ps_test,
+                    chk_ps_chinh,
+                )
+              else:
+                status, msg = bll.save_progress(
+                    tram_chon, chk_nhan_vt, chk_rai_vt, chk_lap_5g, ghi_chu_ngay
+                )
+
               if status:
                 st.success(f"🎉 {msg}")
                 st.rerun()
