@@ -30,66 +30,83 @@ if page == "🛠️ 1. Cổng Báo cáo của Đối tác":
     ds_doi_tac = bll.get_partners(df_data)
     chon_dt = st.selectbox("🏢 Chọn tên Đối tác của bạn:", ds_doi_tac)
 
-    # Lọc danh sách trạm theo đối tác được chọn
+    # Lọc danh sách trạm theo đối tác được chọn và loại bỏ các dòng rỗng
     df_hien_thi = df_data.copy()
+    df_hien_thi = df_hien_thi[
+        df_hien_thi["Matram"].notna()
+        & (df_hien_thi["Matram"].astype(str).str.strip() != "")
+        & (df_hien_thi["Matram"].astype(str).str.lower() != "nan")
+    ]
+
     col_dt = "ĐỐI TÁC" if "ĐỐI TÁC" in df_hien_thi.columns else df_hien_thi.columns[5]
     if chon_dt != "Tất cả" and col_dt in df_hien_thi.columns:
       df_hien_thi = df_hien_thi[df_hien_thi[col_dt] == chon_dt]
 
     st.markdown("### 📌 Chọn Mã Trạm cần báo cáo:")
     if not df_hien_thi.empty:
-      # Xử lý an toàn cột địa chỉ (Unnamed: 3)
-      if "Unnamed: 3" in df_hien_thi.columns:
-        dia_chi = df_hien_thi["Unnamed: 3"].fillna("").astype(str)
-      else:
-        dia_chi = ""
+      # Lấy chính xác cột "Phường xã" (Cột D tương ứng chỉ số index hoặc tên cột chính xác)
+      col_phuong = (
+          "Phường xã"
+          if "Phường xã" in df_hien_thi.columns
+          else df_hien_thi.columns[3]
+      )
+      phuong_xa_vals = df_hien_thi[col_phuong].fillna("").astype(str)
 
+      # Tạo chuỗi hiển thị gọn gàng: Mã trạm | Phường xã (không có dòng trống)
       df_hien_thi["Hien_Thi_Tram"] = (
-          df_hien_thi["Matram"].astype(str) + " — " + dia_chi
+          df_hien_thi["Matram"].astype(str) + " — " + phuong_xa_vals
       )
 
       list_hien_thi = df_hien_thi["Hien_Thi_Tram"].tolist()
 
-      # Sử dụng selectbox xổ xuống, có thể gõ tìm kiếm trực tiếp
+      # Đặt mặc định index về 0 hoặc một giá trị trống khởi đầu để không tự điền sẵn mã trạm
       tram_chon_full = st.selectbox(
           "🔍 Gõ hoặc chọn Mã trạm:",
-          list_hien_thi,
-          help=(
-              "Bạn có thể click để xổ danh sách hoặc gõ trực tiếp mã trạm để"
-              " tìm nhanh"
-          ),
+          options=list_hien_thi,
+          index=None,  # Không chọn sẵn, bắt buộc người dùng click hoặc gõ tìm kiếm
+          placeholder="-- Nhấp vào đây để chọn hoặc gõ tìm kiếm mã trạm --",
       )
 
-      # Tách lại lấy đúng mã trạm gốc từ chuỗi đã chọn
-      tram_chon = tram_chon_full.split(" — ")[0]
+      if tram_chon_full:
+        # Tách lấy đúng mã trạm gốc
+        tram_chon = tram_chon_full.split(" — ")[0]
+        phuong_hien_tai = tram_chon_full.split(" — ")[1]
 
-      st.info(f"Đang thao tác cho Trạm: **{tram_chon}**")
-
-      with st.form("form_bao_cao_doi_tac"):
-        st.markdown("### Tích chọn các mốc đã hoàn thành:")
-        chk_nhan_vt = st.checkbox("📦 Đối tác đã nhận vật tư")
-        chk_rai_vt = st.checkbox("🚚 Đã rải thiết bị đến trạm")
-        chk_lap_5g = st.checkbox("⚡ Đã lắp đặt xong thiết bị 5G")
-
-        ghi_chu_ngay = st.text_input(
-            "Nhập ngày thực hiện (DD/MM/YYYY):",
-            value=pd.Timestamp.now().strftime("%d/%m/%Y"),
+        # Hiển thị thông tin xác nhận trạm và phường xã
+        st.info(
+            f"📍 Đang thao tác cho Trạm: **{tram_chon}** — Phường/Xã:"
+            f" **{phuong_hien_tai}**"
         )
-        submit_bao_cao = st.form_submit_button("🚀 Gửi Báo Cáo Tiến Độ")
 
-        if submit_bao_cao:
-          status, msg = bll.save_progress(
-              tram_chon,
-              chk_nhan_vt,
-              chk_rai_vt,
-              chk_lap_5g,
-              ghi_chu_ngay,
+        with st.form("form_bao_cao_doi_tac"):
+          st.markdown("### Tích chọn các mốc đã hoàn thành:")
+          chk_nhan_vt = st.checkbox("📦 Đối tác đã nhận vật tư")
+          chk_rai_vt = st.checkbox("🚚 Đã rải thiết bị đến trạm")
+          chk_lap_5g = st.checkbox("⚡ Đã lắp đặt xong thiết bị 5G")
+
+          ghi_chu_ngay = st.text_input(
+              "Nhập ngày thực hiện (DD/MM/YYYY):",
+              value=pd.Timestamp.now().strftime("%d/%m/%Y"),
           )
-          if status:
-            st.success(f"🎉 {msg}")
-            st.rerun()
-          else:
-            st.error(msg)
+          submit_bao_cao = st.form_submit_button("🚀 Gửi Báo Cáo Tiến Độ")
+
+          if submit_bao_cao:
+            status, msg = bll.save_progress(
+                tram_chon,
+                chk_nhan_vt,
+                chk_rai_vt,
+                chk_lap_5g,
+                ghi_chu_ngay,
+            )
+            if status:
+              st.success(f"🎉 {msg}")
+              st.rerun()
+            else:
+              st.error(msg)
+      else:
+        st.warning(
+            "Vui lòng chọn hoặc gõ tìm mã trạm ở khung phía trên để tiếp tục."
+        )
     else:
       st.warning("Không tìm thấy trạm phù hợp với đối tác này.")
   else:
