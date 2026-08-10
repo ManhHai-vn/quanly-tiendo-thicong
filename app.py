@@ -223,17 +223,13 @@ else:
     st.markdown("---")
 
     if not df_data.empty:
-      tong_tram = len(df_data)
-      st.metric(label="📊 Tổng số trạm trong dự án", value=tong_tram)
+      summary_df = bll.process_partner_summary(df_data)
 
-      st.markdown("---")
-      st.markdown("### 📈 BÁO CÁO TIẾN ĐỘ LẮP ĐẶT THEO TỪNG ĐỐI TÁC")
-
-     summary_df = bll.process_partner_summary(df_data)
-
-      # Tính tổng trạm đã giao thực tế từ bảng tổng hợp đối tác (VCC + VTK)
+      # Tính tổng trạm đã giao thực tế (VCC + VTK)
       tong_tram_giao_thuc_te = (
-          summary_df.loc[summary_df["Tên Đối Tác"] != "Tổng", "Tổng Trạm Được Giao"].sum()
+          summary_df.loc[
+              summary_df["Tên Đối Tác"] != "Tổng", "Tổng Trạm Được Giao"
+          ].sum()
           if not summary_df.empty
           else 0
       )
@@ -249,7 +245,8 @@ else:
       if not summary_df.empty:
         st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
-      # Nút Xuất excel tổng
+      st.markdown("---")
+
       col_btn_tong, _ = st.columns([2, 8])
       with col_btn_tong:
         output_tong = io.BytesIO()
@@ -320,7 +317,6 @@ else:
             with st.container(border=True):
               st.markdown(f"#### **Đối tác: {doi_tac}**")
 
-              # Chia 2 cột nhỏ trong thẻ để hiển thị danh sách bên trái và khối trạng thái bên phải
               sub_col1, sub_col2 = st.columns([1.1, 0.9])
 
               with sub_col1:
