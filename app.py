@@ -292,22 +292,23 @@ else:
               return 0
 
             nhan_tb = count_done(
-                "Nhận VT" if "Nhận VT" in df_dt.columns else ""
+                "Nhận vật tư" if "Nhận vật tư" in df_dt.columns else ""
             )
-            rai_tb = count_done("Rải TB" if "Rải TB" in df_dt.columns else "")
             lap_tb = count_done(
                 "Lắp TB 5G" if "Lắp TB 5G" in df_dt.columns else ""
             )
-            ngay_hien_tai = datetime.now().strftime("%d/%m/%Y")
+
+            # Tính số trạm chưa lắp (Tổng trạm đã giao - Số trạm đã lắp)
+            tong_tram_giao = len(df_dt)
+            tram_chua_lap = max(0, tong_tram_giao - lap_tb)
 
             with st.container(border=True):
               st.markdown(f"#### **Đối tác: {doi_tac}**")
               st.markdown(f"📅 **Ngày:** {ngay_hien_tai}")
               st.markdown(f"📋 **Tổng trạm đã giao:** {tong_giao}")
-              st.markdown(f"📦 **Nhận thiết bị:** {nhan_tb}/{tong_giao}")
-              st.markdown(f"🚚 **Rải thiết bị:** {rai_tb}/{tong_giao}")
-              st.markdown(f"⚡ **Lắp đặt thiết bị:** {lap_tb}/{tong_giao}")
-
+              st.markdown(f"📦 Nhận thiết bị: {nhan_tb}/{tong_tram}")
+              st.markdown(f"⚡ Lắp đặt thiết bị: {lap_tb}/{tong_tram}")
+              st.markdown(f"⏳ Trạm còn phải lắp: {tram_chua_lap}/{tong_tram}")
               st.markdown("<br>", unsafe_allow_html=True)
 
               output_dt = io.BytesIO()
