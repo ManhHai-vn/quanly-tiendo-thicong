@@ -38,11 +38,14 @@ if page == "🛠️ 1. Cổng Báo cáo của Đối tác":
 
     st.markdown("### 📌 Chọn Mã Trạm cần báo cáo:")
     if not df_hien_thi.empty:
-      # Tạo danh sách hiển thị kèm theo địa chỉ cho dễ phân biệt (Ví dụ: AGG0002 - Phường Long Xuyên)
+      # Xử lý an toàn cột địa chỉ (Unnamed: 3)
+      if "Unnamed: 3" in df_hien_thi.columns:
+        dia_chi = df_hien_thi["Unnamed: 3"].fillna("").astype(str)
+      else:
+        dia_chi = ""
+
       df_hien_thi["Hien_Thi_Tram"] = (
-          df_hien_thi["Matram"].astype(str)
-          + " — "
-          + df_hien_thi.get("Unnamed: 3", "").astype(str)
+          df_hien_thi["Matram"].astype(str) + " — " + dia_chi
       )
 
       list_hien_thi = df_hien_thi["Hien_Thi_Tram"].tolist()
