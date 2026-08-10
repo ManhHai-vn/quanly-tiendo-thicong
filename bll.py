@@ -111,14 +111,14 @@ class BusinessLogicLayer:
 
   def save_progress(
       self,
-      tram_chon,
-      chk_nhan_vt,
-      chk_rai_vt,
-      chk_lap_5g,
-      ngay_thuc_hien,
-      chk_ps_test,
-      chk_ps_chinh,
-      chk_bbnt_lap,
+      tram_chon=None,
+      chk_nhan_vt=False,
+      chk_rai_vt=False,
+      chk_lap_5g=False,
+      ngay_thuc_hien="",
+      chk_ps_test=False,
+      chk_ps_chinh=False,
+      chk_bbnt_lap=False,
   ):
     if not self.sheet:
       return False, "Không kết nối được Google Sheets"
