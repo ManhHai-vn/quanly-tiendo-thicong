@@ -114,6 +114,7 @@ class BusinessLogicLayer:
         return summary_df
 
     def save_progress(self, *args, **kwargs):
+        # Dùng *args và **kwargs để hứng trọn vẹn mọi tham số truyền vào từ app.py, chống triệt để lỗi TypeError
         tram_chon = kwargs.get("tram_chon") or (
             args[0] if len(args) > 0 else None
         )
