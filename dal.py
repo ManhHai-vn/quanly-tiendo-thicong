@@ -52,15 +52,17 @@ class DataAccessLayer:
       return False
       # Thêm vào trong class DataAccessLayer (file dal.py)
 
-    def update_du_kien(self, matram, ngay_du_kien, so_doi):
+    # Thêm vào class DataAccessLayer trong file dal.py
+
+
+def update_du_kien(self, matram, ngay_du_kien, so_doi):
   try:
     client = self._get_client()
-    sheet = client.open(self.spreadsheet_name).sheet1  # Hoặc tên sheet chính
-    # Tìm dòng chứa mã trạm
+    sheet = client.open(self.spreadsheet_name).sheet1
     cell = sheet.find(str(matram))
     if cell:
       row = cell.row
-      # Giả sử cột H là cột 'Ngày dự kiến t...' (cột số 8) và cột I là 'SoDoi' (cột số 9)
+      # Cột 8 (H): Ngày dự kiến thi công, Cột 9 (I): SoDoi
       sheet.update_cell(row, 8, str(ngay_du_kien))
       sheet.update_cell(row, 9, str(so_doi))
       return True
