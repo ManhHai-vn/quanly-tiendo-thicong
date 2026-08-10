@@ -109,19 +109,27 @@ class BusinessLogicLayer:
 
     return summary_df
 
-  def save_progress(
-      self,
-      tram_chon,
-      chk_nhan_vt,
-      chk_rai_vt,
-      chk_lap_5g,
-      ngay_thuc_hien,
-      chk_ps_test=False,
-      chk_ps_chinh=False,
-      chk_bbnt_lap=False,
-      *args,
-      **kwargs,
-  ):
+  def save_progress(self, *args, **kwargs):
+    # Xử lý tham số cực kỳ linh hoạt, chống mọi lỗi TypeError bất kể truyền thiếu hay thừa
+    tram_chon = kwargs.get("tram_chon") or (args[0] if len(args) > 0 else None)
+    chk_nhan_vt = kwargs.get(
+        "chk_nhan_vt", args[1] if len(args) > 1 else False
+    )
+    chk_rai_vt = kwargs.get("chk_rai_vt", args[2] if len(args) > 2 else False)
+    chk_lap_5g = kwargs.get("chk_lap_5g", args[3] if len(args) > 3 else False)
+    ngay_thuc_hien = kwargs.get("ngay_thuc_hien") or (
+        args[4]
+        if len(args) > 4
+        else pd.Timestamp.now().strftime("%d/%m/%Y")
+    )
+    chk_ps_test = kwargs.get("chk_ps_test", args[5] if len(args) > 5 else False)
+    chk_ps_chinh = kwargs.get(
+        "chk_ps_chinh", args[6] if len(args) > 6 else False
+    )
+    chk_bbnt_lap = kwargs.get(
+        "chk_bbnt_lap", args[7] if len(args) > 7 else False
+    )
+
     if not self.sheet:
       return False, "Không kết nối được Google Sheets"
     try:
