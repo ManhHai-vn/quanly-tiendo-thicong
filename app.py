@@ -141,11 +141,9 @@ else:
 
       # Thêm nút Xuất Excel danh sách trạm ngay tại màn hình báo cáo để đối tác dễ đối chiếu
       st.markdown("---")
-      col_info_ title, col_btn_dl = st.columns([6, 4])
+      col_info_title, col_btn_dl = st.columns([6, 4])
       with col_info_title:
-        st.markdown(
-            "### 📥 Xuất danh sách trạm & đối soát số liệu của bạn:"
-        )
+        st.markdown("### 📥 Xuất danh sách trạm & đối soát số liệu của bạn:")
       with col_btn_dl:
         output_partner_excel = io.BytesIO()
         with pd.ExcelWriter(output_partner_excel) as writer:
