@@ -240,10 +240,13 @@ else:
       )
 
       st.markdown("---")
-      st.markdown("### 📈 BÁO CÁO TIẾN ĐỘ LẮP ĐẶT THEO TỪNG ĐỐI TÁC")
+        st.markdown("### 📈 BÁO CÁO TIẾN ĐỘ LẮP ĐẶT THEO TỪNG ĐỐI TÁC")
 
-      if not summary_df.empty:
-        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+        summary_df = bll.process_partner_summary(df_data)
+
+    if not summary_df.empty:
+          # Hiển thị trực tiếp summary_df lên Streamlit
+      st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
       st.markdown("---")
 
