@@ -100,7 +100,11 @@ class BusinessLogicLayer:
     return False, "Không tìm thấy mã trạm hoặc lỗi cập nhật."
     # Thêm vào trong class BusinessLogicLayer (file bll.py)
 
-  def save_lich_du_kien(self, matram, ngay, so_doi):
+ 
+# Thêm vào class BusinessLogicLayer trong file bll.py
+
+
+def save_lich_du_kien(self, matram, ngay, so_doi):
   if not matram:
     return False, "Vui lòng chọn mã trạm."
   success = self.dal.update_du_kien(matram, ngay, so_doi)
@@ -108,7 +112,7 @@ class BusinessLogicLayer:
     st.cache_data.clear()
     return (
         True,
-        f"Đã cập nhật lịch dự kiến cho trạm {matram}: Ngày {ngay}, Số đội"
-        f" {so_doi}!",
+        f"Đã cập nhật lịch dự kiến cho trạm {matram} (Ngày: {ngay}, Số đội:"
+        f" {so_doi})!",
     )
   return False, "Không tìm thấy mã trạm tương ứng trong Google Sheets."
