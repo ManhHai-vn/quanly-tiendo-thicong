@@ -211,6 +211,6 @@ class BusinessLogicLayer:
                     if "SoDoi" in h or "Số đội" in h:
                         self.sheet.update_cell(row, idx + 1, so_doi)
                 return True, "Cập nhật lịch thành công!"
-            return False, "Không tìm thấy trạm."
+            return False, "Not found"
         except Exception as e:
             return False, f"Lỗi: {e}"
