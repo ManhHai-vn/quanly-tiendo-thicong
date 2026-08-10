@@ -98,3 +98,16 @@ class BusinessLogicLayer:
       st.cache_data.clear()
       return True, f"Đã cập nhật thành công ngày {ngay} cho trạm {tram_chon}!"
     return False, "Không tìm thấy mã trạm hoặc lỗi cập nhật."
+    # Thêm vào trong class BusinessLogicLayer (file bll.py)
+
+    def get_lich_du_kien(self):
+      return self.dal.fetch_du_kien()
+
+    def tao_lich_du_kien(self, ngay, matram, so_doi, nguoi_tao):
+      if not matram:
+        return False, "Vui lòng chọn mã trạm dự kiến."
+      success = self.dal.save_du_kien(ngay, matram, so_doi, nguoi_tao)
+      if success:
+        st.cache_data.clear()
+        return True, f"Đã lên lịch thành công cho trạm {matram} vào ngày {ngay}!"
+      return False, "Lỗi khi lưu lịch thi công."
