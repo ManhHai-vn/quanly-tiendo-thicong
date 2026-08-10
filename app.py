@@ -1,22 +1,163 @@
-if tram_chon_full:
+from bll import BusinessLogicLayer
+import pandas as pd
+import streamlit as st
+
+st.set_page_config(
+    page_title="Hệ thống Quản lý Tiến độ 5G - Phân quyền", layout="wide"
+)
+
+
+@st.cache_resource
+def get_bll():
+  return BusinessLogicLayer()
+
+
+bll = get_bll()
+df_data = bll.get_raw_data()
+
+# =====================================================================
+# HỆ THỐNG XÁC THỰC VÀ PHÂN QUYỀN (LOGIN & RBAC)
+# =====================================================================
+if "authenticated" not in st.session_state:
+  st.session_state["authenticated"] = False
+  st.session_state["username"] = ""
+  st.session_state["role"] = ""
+  st.session_state["partner_name"] = ""
+
+
+def login_screen():
+  st.title("🔐 ĐĂNG NHẬP HỆ THỐNG QUẢN LÝ 5G")
+  st.markdown("---")
+  col1, col2, col3 = st.columns([1, 2, 1])
+  with col2:
+    with st.form("login_form"):
+      st.markdown("### Vui lòng đăng nhập để tiếp tục")
+      username = st.text_input("Tên đăng nhập (Username):")
+      password = st.text_input("Mật khẩu (Password):", type="password")
+      submit = st.form_submit_button("Đăng Nhập", use_container_width=True)
+
+      if submit:
+        users_db = {
+            "admin_agg": {
+                "pass": "admin123",
+                "role": "admin",
+                "partner": "Tất cả",
+            },
+            "vtk": {"pass": "vtk123", "role": "partner", "partner": "VTK"},
+            "vcc": {"pass": "vcc123", "role": "partner", "partner": "VCC"},
+        }
+
+        if username in users_db and users_db[username]["pass"] == password:
+          st.session_state["authenticated"] = True
+          st.session_state["username"] = username
+          st.session_state["role"] = users_db[username]["role"]
+          st.session_state["partner_name"] = users_db[username]["partner"]
+          st.success("Đăng nhập thành công!")
+          st.rerun()
+        else:
+          st.error("Sai tên đăng nhập hoặc mật khẩu!")
+
+
+if not st.session_state["authenticated"]:
+  login_screen()
+else:
+  current_role = st.session_state["role"]
+  current_partner = st.session_state["partner_name"]
+
+  st.sidebar.title("📌 HỆ THỐNG 5G (BETA)")
+  st.sidebar.info(
+      f"👤 Đang đăng nhập: **{st.session_state['username'].upper()}**\n\n"
+      f"🏢 Quyền hạn: **{'Admin Hệ thống' if current_role == 'admin' else 'Nhà thầu ' + current_partner}**"
+  )
+
+  if st.sidebar.button("🚪 Đăng xuất"):
+    st.session_state["authenticated"] = False
+    st.session_state["username"] = ""
+    st.session_state["role"] = ""
+    st.session_state["partner_name"] = ""
+    st.rerun()
+
+  if current_role == "admin":
+    menu_options = [
+        "🛠️ 1. Cổng Báo cáo Tiến độ",
+        "📊 2. Trang Quản lý & Dashboard",
+    ]
+  else:
+    menu_options = ["🛠️ 1. Cổng Báo cáo Tiến độ"]
+
+  page = st.sidebar.radio("Chọn trang:", menu_options)
+
+  if page == "🛠️ 1. Cổng Báo cáo Tiến độ":
+    st.title("🛠️ CỔNG BÁO CÁO TIẾN ĐỘ THI CÔNG")
+    st.markdown("---")
+
+    if not df_data.empty and "Matram" in df_data.columns:
+      df_hien_thi = df_data.copy()
+      df_hien_thi = df_hien_thi[
+          df_hien_thi["Matram"].notna()
+          & (df_hien_thi["Matram"].astype(str).str.strip() != "")
+          & (df_hien_thi["Matram"].astype(str).str.lower() != "nan")
+      ]
+
+      col_dt = (
+          "ĐỐI TÁC" if "ĐỐI TÁC" in df_hien_thi.columns else df_hien_thi.columns[5]
+      )
+
+      if current_role == "partner":
+        st.info(
+            f"🔒 Tài khoản thuộc nhà thầu **{current_partner}**: Chỉ hiển thị"
+            " các trạm thuộc quyền quản lý."
+        )
+        if col_dt in df_hien_thi.columns:
+          df_hien_thi = df_hien_thi[
+              df_hien_thi[col_dt].astype(str).str.strip().str.upper()
+              == current_partner.upper()
+          ]
+      else:
+        ds_doi_tac = ["Tất cả"] + list(df_hien_thi[col_dt].dropna().unique())
+        chon_dt = st.selectbox(
+            "🏢 Lọc theo tên Đối tác (Admin):", ds_doi_tac
+        )
+        if chon_dt != "Tất cả" and col_dt in df_hien_thi.columns:
+          df_hien_thi = df_hien_thi[df_hien_thi[col_dt] == chon_dt]
+
+      st.markdown("### 📌 Chọn Mã Trạm cần báo cáo:")
+      if not df_hien_thi.empty:
+        col_phuong = (
+            "Phường xã"
+            if "Phường xã" in df_hien_thi.columns
+            else df_hien_thi.columns[3]
+        )
+        phuong_xa_vals = df_hien_thi[col_phuong].fillna("").astype(str)
+
+        df_hien_thi["Hien_Thi_Tram"] = (
+            df_hien_thi["Matram"].astype(str) + " — " + phuong_xa_vals
+        )
+        list_hien_thi = df_hien_thi["Hien_Thi_Tram"].tolist()
+
+        tram_chon_full = st.selectbox(
+            "🔍 Gõ hoặc chọn Mã trạm:",
+            options=list_hien_thi,
+            index=None,
+            placeholder=(
+                "-- Nhấp vào đây để chọn hoặc gõ tìm kiếm mã trạm thuộc quyền --"
+            ),
+        )
+
+        if tram_chon_full:
           tram_chon = tram_chon_full.split(" — ")[0]
           phuong_hien_tai = tram_chon_full.split(" — ")[1]
 
-          # Lấy dòng dữ liệu hiện tại của trạm này từ DataFrame
           row_hien_tai = df_hien_thi[
               df_hien_thi["Matram"].astype(str) == str(tram_chon)
           ].iloc[0]
 
-          # Kiểm tra các mốc đã hoàn thành từ Google Sheets (ví dụ: cột K, L, M hoặc theo tên cột thực tế của bạn)
-          # Giả định dữ liệu cũ nếu có giá trị (không rỗng/không phải nan) nghĩa là đã hoàn thành
           def check_da_lam(ten_cot):
             if ten_cot in row_hien_tai:
               val = str(row_hien_tai[ten_cot]).strip()
               return val != "" and val.lower() != "nan" and val != "None"
             return False
 
-          # Thay thế bằng tên cột thực tế trong Google Sheets của bạn cho 3 mốc:
-          # Ví dụ: Nhận vật tư, Rải thiết bị, Lắp TB 5G
           da_nhan = check_da_lam(
               "Nhận VT" if "Nhận VT" in df_hien_thi.columns else df_hien_thi.columns[10]
           )
@@ -29,7 +170,6 @@ if tram_chon_full:
               else df_hien_thi.columns[12]
           )
 
-          # Thông báo ngày lắp đặt xong nếu đã có
           ngay_lap_dat_cu = (
               str(row_hien_tai["Lắp TB 5G"])
               if da_lap and "Lắp TB 5G" in row_hien_tai
@@ -50,8 +190,6 @@ if tram_chon_full:
             st.markdown(
                 "### Tích chọn hoặc cập nhật các mốc tiến độ hoàn thành:"
             )
-
-            # Gán trạng thái checked sẵn nếu dữ liệu cũ đã có
             chk_nhan_vt = st.checkbox("📦 Đối tác đã nhận vật tư", value=da_nhan)
             chk_rai_vt = st.checkbox(
                 "🚚 Đã rải thiết bị đến trạm", value=da_rai
@@ -79,3 +217,46 @@ if tram_chon_full:
                 st.rerun()
               else:
                 st.error(msg)
+        else:
+          st.warning("Vui lòng chọn hoặc gõ tìm mã trạm để tiếp tục.")
+      else:
+        st.warning("Không tìm thấy trạm nào thuộc quyền quản lý của bạn.")
+    else:
+      st.warning("Đang tải dữ liệu từ Google Sheets.")
+
+  elif page == "📊 2. Trang Quản lý & Dashboard" and current_role == "admin":
+    st.title("📊 TRANG QUẢN LÝ DỮ LIỆU & ĐIỀU HÀNH DỰ ÁN")
+    if not df_data.empty:
+      tong_tram = len(df_data)
+      col1, col2 = st.columns(2)
+      with col1:
+        st.metric(label="Tổng số trạm trong dự án", value=tong_tram)
+
+      st.markdown("---")
+      st.markdown("### 📈 BÁO CÁO TIẾN ĐỘ LẮP ĐẶT THEO TỪNG ĐỐI TÁC")
+
+      summary_df = bll.process_partner_summary(df_data)
+      if not summary_df.empty:
+        st.dataframe(
+            summary_df[
+                [
+                    "Tên Đối Tác",
+                    "Tổng Trạm Được Giao",
+                    "Đã Lắp Đặt 5G",
+                    "Tỷ Lệ Hoàn Thành",
+                ]
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+      else:
+        st.info("Chưa có dữ liệu đối tác để tổng hợp.")
+
+      st.markdown("---")
+      st.markdown("### 📋 Toàn bộ dữ liệu hệ thống (Đồng bộ từ Google Sheets)")
+      if st.button("🔄 Làm mới dữ liệu"):
+        st.cache_data.clear()
+        st.rerun()
+      st.dataframe(df_data, use_container_width=True)
+    else:
+      st.warning("Chưa có dữ liệu.")
