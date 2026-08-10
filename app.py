@@ -30,6 +30,20 @@ if not df_data.empty:
   if not col_dt and len(df_data.columns) > 5:
     col_dt = df_data.columns[5]
 
+
+# Đưa hàm count_col_done lên đây để dùng chung cho mọi trang
+def count_col_done(dframe, target_cols):
+  for col_name in target_cols:
+    if col_name in dframe.columns:
+      s = dframe[col_name].astype(str).str.strip()
+      return len(
+          dframe[
+              (s != "") & (s.str.lower() != "nan") & (s.str.lower() != "none")
+          ]
+      )
+  return 0
+
+
 # =====================================================================
 # HỆ THỐNG XÁC THỰC VÀ PHÂN QUYỀN (LOGIN & RBAC)
 # =====================================================================
@@ -146,25 +160,10 @@ else:
       # ===================================================================
       st.markdown("---")
       st.markdown(
-          f"### 📊 Tổng quan tiến độ thực hiện: **{chon_dt.upper()}**"
+          f"### 📊 Tổng quan tiến độ thực hiện: **{str(chon_dt).upper()}**"
       )
 
-      # Tính toán số liệu nhanh
       tong_giao = len(df_hien_thi)
-
-      def count_col_done(dframe, target_cols):
-        for col_name in target_cols:
-          if col_name in dframe.columns:
-            s = dframe[col_name].astype(str).str.strip()
-            return len(
-                dframe[
-                    (s != "")
-                    & (s.str.lower() != "nan")
-                    & (s.str.lower() != "none")
-                ]
-            )
-        return 0
-
       so_nhan = count_col_done(df_hien_thi, ["Nhận VT", "Nhận thiết bị"])
       so_rai = count_col_done(
           df_hien_thi, ["Rải TB", "Rải thiết bị", "Rải VT"]
@@ -184,7 +183,6 @@ else:
       m5.metric("📝 Ký BBNT", f"{so_bbnt}/{tong_giao}")
       # ===================================================================
 
-      # Thêm nút Xuất Excel danh sách trạm ngay tại màn hình báo cáo
       st.markdown("---")
       col_info_title, col_btn_dl = st.columns([6, 4])
       with col_info_title:
