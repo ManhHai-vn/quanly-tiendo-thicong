@@ -117,6 +117,7 @@ else:
           & (df_hien_thi["Matram"].astype(str).str.lower() != "nan")
       ]
 
+      chon_dt = "Tất cả"
       if current_role == "partner":
         st.info(
             f"🔒 Tài khoản thuộc nhà thầu **{current_partner}**: Chỉ hiển thị"
@@ -127,6 +128,7 @@ else:
               df_hien_thi[col_dt].astype(str).str.strip().str.upper()
               == current_partner.upper()
           ]
+        chon_dt = current_partner
       else:
         ds_doi_tac = (
             ["Tất cả"] + list(df_hien_thi[col_dt].dropna().unique())
@@ -139,7 +141,50 @@ else:
         if chon_dt != "Tất cả" and col_dt and col_dt in df_hien_thi.columns:
           df_hien_thi = df_hien_thi[df_hien_thi[col_dt] == chon_dt]
 
-      # Thêm nút Xuất Excel danh sách trạm ngay tại màn hình báo cáo để đối tác dễ đối chiếu
+      # ===================================================================
+      # HIỂN THỊ MỤC TIẾN ĐỘ THỰC HIỆN NGAY TẠI VỊ TRÍ KHOANH ĐỎ
+      # ===================================================================
+      st.markdown("---")
+      st.markdown(
+          f"### 📊 Tổng quan tiến độ thực hiện: **{chon_dt.upper()}**"
+      )
+
+      # Tính toán số liệu nhanh
+      tong_giao = len(df_hien_thi)
+
+      def count_col_done(dframe, target_cols):
+        for col_name in target_cols:
+          if col_name in dframe.columns:
+            s = dframe[col_name].astype(str).str.strip()
+            return len(
+                dframe[
+                    (s != "")
+                    & (s.str.lower() != "nan")
+                    & (s.str.lower() != "none")
+                ]
+            )
+        return 0
+
+      so_nhan = count_col_done(df_hien_thi, ["Nhận VT", "Nhận thiết bị"])
+      so_rai = count_col_done(
+          df_hien_thi, ["Rải TB", "Rải thiết bị", "Rải VT"]
+      )
+      so_lap = count_col_done(df_hien_thi, ["Lắp TB 5G", "Lắp đặt 5G"])
+      so_bbnt = count_col_done(df_hien_thi, ["BBNT Lắp đặt", "BBNT"])
+
+      phan_tram_lap = (
+          round((so_lap / tong_giao * 100), 1) if tong_giao > 0 else 0.0
+      )
+
+      m1, m2, m3, m4, m5 = st.columns(5)
+      m1.metric("📋 Tổng giao", tong_giao)
+      m2.metric("📦 Nhận VT", f"{so_nhan}/{tong_giao}")
+      m3.metric("🚚 Rải TB", f"{so_rai}/{tong_giao}")
+      m4.metric("⚡ Lắp xong 5G", f"{so_lap}/{tong_giao}", f"{phan_tram_lap}%")
+      m5.metric("📝 Ký BBNT", f"{so_bbnt}/{tong_giao}")
+      # ===================================================================
+
+      # Thêm nút Xuất Excel danh sách trạm ngay tại màn hình báo cáo
       st.markdown("---")
       col_info_title, col_btn_dl = st.columns([6, 4])
       with col_info_title:
@@ -199,33 +244,27 @@ else:
           if not row_filtered.empty:
             row_hien_tai = row_filtered.iloc[0]
 
-            def check_da_lam(ten_col):
-              if ten_col and ten_col in row_hien_tai:
-                val = str(row_hien_tai[ten_col]).strip()
-                return val != "" and val.lower() != "nan" and val != "None"
+            def check_da_lam(*ten_cols):
+              for ten_col in ten_cols:
+                if ten_col and ten_col in row_filtered.columns:
+                  val = str(row_hien_tai[ten_col]).strip()
+                  if val != "" and val.lower() != "nan" and val != "None":
+                    return True
               return False
 
-            da_nhan = check_da_lam(
-                "Nhận VT" if "Nhận VT" in df_hien_thi.columns else ""
-            )
+            da_nhan = check_da_lam("Nhận VT", "Nhận thiết bị", "Nhận vật tư")
             da_rai = check_da_lam(
-                "Rải TB" if "Rải TB" in df_hien_thi.columns else ""
+                "Rải TB", "Rải thiết bị", "Rải VT", "Đã rải thiết bị đến trạm"
             )
             da_lap = check_da_lam(
-                "Lắp TB 5G" if "Lắp TB 5G" in df_hien_thi.columns else ""
+                "Lắp TB 5G", "Lắp đặt 5G", "Lắp thiết bị 5G"
             )
             da_bbnt_lap = check_da_lam(
-                "BBNT Lắp đặt" if "BBNT Lắp đặt" in df_hien_thi.columns else ""
+                "BBNT Lắp đặt", "BBNT", "Biên bản nghiệm thu lắp đặt"
             )
-            da_ps_test = check_da_lam(
-                "Phát sóng Test"
-                if "Phát sóng Test" in df_hien_thi.columns
-                else ""
-            )
+            da_ps_test = check_da_lam("Phát sóng Test", "PS Test", "Test")
             da_ps_chinh = check_da_lam(
-                "Phát sóng chính thức"
-                if "Phát sóng chính thức" in df_hien_thi.columns
-                else ""
+                "Phát sóng chính thức", "PS Chính thức", "Phát sóng"
             )
 
             with st.form("form_bao_cao_doi_tac"):
@@ -349,33 +388,12 @@ else:
             ]
 
             tong_giao = len(df_dt)
-
-            def count_done(col_name):
-              if col_name in df_dt.columns:
-                s = df_dt[col_name].astype(str).str.strip()
-                return len(
-                    df_dt[
-                        (s != "")
-                        & (s.str.lower() != "nan")
-                        & (s.str.lower() != "none")
-                    ]
-                )
-              return 0
-
-            nhan_tb = count_done("Nhận VT" if "Nhận VT" in df_dt.columns else "")
-            lap_tb = count_done(
-                "Lắp TB 5G" if "Lắp TB 5G" in df_dt.columns else ""
-            )
-            bbnt_lap = count_done(
-                "BBNT Lắp đặt" if "BBNT Lắp đặt" in df_dt.columns else ""
-            )
-            phat_song_test = count_done(
-                "Phát sóng Test" if "Phát sóng Test" in df_dt.columns else ""
-            )
-            phat_song_chinh = count_done(
-                "Phát sóng chính thức"
-                if "Phát sóng chính thức" in df_dt.columns
-                else ""
+            nhan_tb = count_col_done(df_dt, ["Nhận VT", "Nhận thiết bị"])
+            lap_tb = count_col_done(df_dt, ["Lắp TB 5G", "Lắp đặt 5G"])
+            bbnt_lap = count_col_done(df_dt, ["BBNT Lắp đặt", "BBNT"])
+            phat_song_test = count_col_done(df_dt, ["Phát sóng Test", "PS Test"])
+            phat_song_chinh = count_col_done(
+                df_dt, ["Phát sóng chính thức", "PS Chính thức"]
             )
 
             tram_chua_lap = max(0, tong_giao - lap_tb)
