@@ -239,16 +239,16 @@ else:
           value=tong_tram_giao_thuc_te,
       )
 
-      st.markdown("---")
+    st.markdown("---")
         st.markdown("### 📈 BÁO CÁO TIẾN ĐỘ LẮP ĐẶT THEO TỪNG ĐỐI TÁC")
 
         summary_df = bll.process_partner_summary(df_data)
 
-    if not summary_df.empty:
+        if not summary_df.empty:
           # Hiển thị trực tiếp summary_df lên Streamlit
-      st.dataframe(summary_df, use_container_width=True, hide_index=True)
+          st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
-      st.markdown("---")
+          st.markdown("---")
 
       col_btn_tong, _ = st.columns([2, 8])
       with col_btn_tong:
