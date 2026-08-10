@@ -287,9 +287,8 @@ else:
                 )
               return 0
 
-            nhan_tb = count_done(
-                "Nhận vật tư" if "Nhận vật tư" in df_dt.columns else ""
-            )
+           # Sửa lại tên cột tìm kiếm cho khớp với Google Sheets là 'Nhận VT'
+            nhan_tb = count_done("Nhận VT" if "Nhận VT" in df_dt.columns else "")
             lap_tb = count_done(
                 "Lắp TB 5G" if "Lắp TB 5G" in df_dt.columns else ""
             )
@@ -300,11 +299,13 @@ else:
               st.markdown(f"#### **Đối tác: {doi_tac}**")
               st.markdown(f"📅 **Ngày:** {ngay_hien_tai}")
               st.markdown(f"📋 **Tổng trạm đã giao:** {tong_giao}")
+
+              # Sắp xếp lại thứ tự theo yêu cầu của bạn (Trạm còn phải lắp xuống dưới cùng)
               st.markdown(f"📦 **Nhận thiết bị:** {nhan_tb}/{tong_giao}")
+              st.markdown(f"⚡ **Lắp đặt thiết bị:** {lap_tb}/{tong_giao}")
               st.markdown(
                   f"⏳ **Trạm còn phải lắp:** {tram_chua_lap}/{tong_giao}"
               )
-              st.markdown(f"⚡ **Lắp đặt thiết bị:** {lap_tb}/{tong_giao}")
 
               st.markdown("<br>", unsafe_allow_html=True)
 
