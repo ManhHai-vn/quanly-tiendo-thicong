@@ -1,4 +1,35 @@
-def process_partner_summary(self, df):
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import pandas as pd
+import streamlit as st
+
+
+class BusinessLogicLayer:
+
+  def __init__(self):
+    self.scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    try:
+      creds_dict = dict(st.secrets["gcp_service_account"])
+      self.creds = ServiceAccountCredentials.from_json_keyfile_dict(
+          creds_dict, self.scope
+      )
+      self.client = gspread.authorize(self.creds)
+      self.sheet = self.client.open("thi cong 5G-2026").sheet1
+    except Exception as e:
+      st.error(f"Lỗi kết nối Google Sheets: {e}")
+      self.sheet = None
+
+  def get_raw_data(self):
+    if not self.sheet:
+      return pd.DataFrame()
+    data = self.sheet.get_all_records()
+    df = pd.DataFrame(data)
+    return df
+
+  def process_partner_summary(self, df):
     if df.empty:
       return pd.DataFrame()
 
@@ -72,9 +103,60 @@ def process_partner_summary(self, df):
           "Tỷ_Lệ_%": float(tong_ty_le),
           "Tỷ Lệ Hoàn Thành": f"{tong_ty_le}%",
       }
-      # Sử dụng pd.concat chuẩn để thêm dòng tổng vào cuối
       summary_df = pd.concat(
           [summary_df, pd.DataFrame([tong_row])], ignore_index=True
       )
 
     return summary_df
+
+  def save_progress(
+      self, tram_chon, chk_nhan_vt, chk_rai_vt, chk_lap_5g, ngay_thuc_hien
+  ):
+    if not self.sheet:
+      return False, "Không kết nối được Google Sheets"
+    try:
+      cell = self.sheet.find(str(tram_chon))
+      if cell:
+        row = cell.row
+        headers = self.sheet.row_values(1)
+
+        if "Nhận VT" in headers:
+          col_nhan = headers.index("Nhận VT") + 1
+          self.sheet.update_cell(
+              row, col_nhan, ngay_thuc_hien if chk_nhan_vt else ""
+          )
+
+        if "Rải TB" in headers:
+          col_rai = headers.index("Rải TB") + 1
+          self.sheet.update_cell(
+              row, col_rai, ngay_thuc_hien if chk_rai_vt else ""
+          )
+
+        if "Lắp TB 5G" in headers:
+          col_lap = headers.index("Lắp TB 5G") + 1
+          self.sheet.update_cell(
+              row, col_lap, ngay_thuc_hien if chk_lap_5g else ""
+          )
+
+        return True, "Cập nhật tiến độ thành công!"
+      return False, "Không tìm thấy mã trạm."
+    except Exception as e:
+      return False, f"Lỗi: {e}"
+
+  def save_lich_du_kien(self, tram_chon, ngay_du_kien, so_doi):
+    if not self.sheet:
+      return False, "Không kết nối được Google Sheets"
+    try:
+      cell = self.sheet.find(str(tram_chon))
+      if cell:
+        row = cell.row
+        headers = self.sheet.row_values(1)
+        for idx, h in enumerate(headers):
+          if "Ngày dự kiến" in h or "Ngày dự" in h:
+            self.sheet.update_cell(row, idx + 1, ngay_du_kien)
+          if "SoDoi" in h or "Số đội" in h:
+            self.sheet.update_cell(row, idx + 1, so_doi)
+        return True, "Cập nhật lịch thành công!"
+      return False, "Không tìm thấy trạm."
+    except Exception as e:
+      return False, f"Lỗi: {e}"
