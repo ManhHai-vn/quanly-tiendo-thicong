@@ -224,14 +224,14 @@ else:
 
             if submit_bao_cao:
               status, msg = bll.save_progress(
-                  tram_chon=tram_chon,
-                  chk_nhan_vt=chk_nhan_vt,
-                  chk_rai_vt=chk_rai_vt,
-                  chk_lap_5g=chk_lap_5g,
-                  ngay_thuc_hien=ghi_chu_ngay,
-                  chk_ps_test=chk_ps_test,
-                  chk_ps_chinh=chk_ps_chinh,
-                  chk_bbnt_lap=chk_bbnt_lap,
+                  tram_chon,
+                  chk_nhan_vt,
+                  chk_rai_vt,
+                  chk_lap_5g,
+                  ghi_chu_ngay,
+                  chk_ps_test,
+                  chk_ps_chinh,
+                  chk_bbnt_lap,
               )
 
               if status:
