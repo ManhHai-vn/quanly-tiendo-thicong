@@ -31,7 +31,6 @@ if not df_data.empty:
     col_dt = df_data.columns[5]
 
 
-# Đưa hàm count_col_done lên đây để dùng chung cho mọi trang
 def count_col_done(dframe, target_cols):
   for col_name in target_cols:
     if col_name in dframe.columns:
@@ -44,9 +43,6 @@ def count_col_done(dframe, target_cols):
   return 0
 
 
-# =====================================================================
-# HỆ THỐNG XÁC THỰC VÀ PHÂN QUYỀN (LOGIN & RBAC)
-# =====================================================================
 if "authenticated" not in st.session_state:
   st.session_state["authenticated"] = False
   st.session_state["username"] = ""
@@ -323,38 +319,60 @@ else:
     st.title("📊 TRANG QUẢN LÝ DỮ LIỆU & ĐIỀU HÀNH DỰ ÁN")
     st.markdown("---")
 
-    # MỤC THÊM MỚI: XUẤT BÁO CÁO TIẾN ĐỘ THEO NGÀY
-    with st.expander("📅 Xuất báo cáo tiến độ theo ngày", expanded=False):
+    # MỤC XUẤT BÁO CÁO TIẾN ĐỘ THEO NGÀY (CÓ BẢNG HIỂN THỊ VÀ TẢI EXCEL TRỰC TIẾP)
+    with st.expander("📅 Báo cáo tiến độ theo ngày", expanded=True):
       target_date = st.date_input("Chọn ngày báo cáo:")
-      if st.button("📥 Xuất dữ liệu theo ngày"):
-        d_str = target_date.strftime("%d/%m/%Y")
+      if st.button("📊 Xem bảng thống kê theo ngày"):
+        st.session_state["show_daily_report"] = True
+        st.session_state["daily_target_date"] = target_date
+      else:
+        if "show_daily_report" not in st.session_state:
+          st.session_state["show_daily_report"] = False
+
+      if st.session_state.get("show_daily_report", False):
+        selected_date_val = st.session_state.get(
+            "daily_target_date", target_date
+        )
+        d_str = selected_date_val.strftime("%d/%m/%Y")
+
+        st.markdown(f"### 📋 Bảng thống kê tiến độ trong ngày: **{d_str}**")
+
         df_day = df_data[
             df_data.astype(str).apply(lambda x: x.str.contains(d_str)).any(axis=1)
         ]
         report = []
-        for dt in df_data[col_dt].dropna().unique():
-          df_sub = df_day[df_day[col_dt] == dt]
-          report.append({
-              "Đối tác": dt,
-              "Trạm lắp trong ngày": len(df_sub),
-              "Tổng trạm đã nhận VT": count_col_done(
-                  df_sub[df_sub["Nhận VT"].notna()]
-                  if "Nhận VT" in df_sub.columns
-                  else df_sub,
-                  ["Nhận VT"],
-              ),
-          })
+        if col_dt and col_dt in df_data.columns:
+          for dt in df_data[col_dt].dropna().unique():
+            df_sub = df_day[df_day[col_dt] == dt]
+            report.append({
+                "Đối tác": dt,
+                "Trạm thực hiện trong ngày": len(df_sub),
+                "Tổng trạm đã nhận VT": count_col_done(
+                    df_sub[df_sub["Nhận VT"].notna()]
+                    if "Nhận VT" in df_sub.columns
+                    else df_sub,
+                    ["Nhận VT"],
+                ),
+            })
 
-        buffer = io.BytesIO()
-        pd.DataFrame(report).to_excel(buffer, index=False)
-        st.download_button(
-            "📥 Tải File Excel Báo Cáo Ngày",
-            data=buffer.getvalue(),
-            file_name=f"BaoCao_{d_str.replace('/','-')}.xlsx",
-            mime=(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            ),
-        )
+        df_report = pd.DataFrame(report)
+        if not df_report.empty:
+          st.dataframe(df_report, use_container_width=True, hide_index=True)
+
+          buffer = io.BytesIO()
+          df_report.to_excel(buffer, index=False)
+          buffer.seek(0)
+          st.download_button(
+              label="📥 Tải File Excel Báo Cáo Ngày",
+              data=buffer,
+              file_name=f"BaoCao_Ngay_{d_str.replace('/','-')}.xlsx",
+              mime=(
+                  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              ),
+          )
+        else:
+          st.warning(f"Không có dữ liệu tiến độ ghi nhận trong ngày {d_str}")
+
     st.markdown("---")
 
     if not df_data.empty:
