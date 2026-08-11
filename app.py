@@ -213,7 +213,7 @@ else:
         st.title("📊 TRANG QUẢN LÝ DỮ LIỆU & ĐIỀU HÀNH DỰ ÁN")
         st.markdown("---")
         
-        # MỤC BÁO CÁO TIẾN ĐỘ THEO NGÀY (CHIA CỘT VCC - VTK)
+# MỤC BÁO CÁO TIẾN ĐỘ THEO NGÀY (CHIA CỘT VCC - VTK)
         with st.expander("📅 Báo cáo tiến độ theo ngày", expanded=True):
             target_date = st.date_input("Chọn ngày báo cáo:")
             if st.button("📊 Xem bảng thống kê theo ngày"):
@@ -222,13 +222,24 @@ else:
             
             if st.session_state.get("show_daily_report", False):
                 selected_date_val = st.session_state.get("daily_target_date", target_date)
-                d_str = selected_date_val.strftime("%d/%m/%Y")
-                
-                col_ngay = "Ngày thực hiện" if "Ngày thực hiện" in df_data.columns else None
-                df_day = df_data[df_data[col_ngay].astype(str).str.contains(d_str, na=False)] if col_ngay else \
-                         df_data[df_data.astype(str).apply(lambda x: x.str.contains(d_str)).any(axis=1)]
+                d_str1 = selected_date_val.strftime("%d/%m/%Y")      # Dạng: 02/08/2026 hoặc 2/8/2026
+                d_str2 = selected_date_val.strftime("%-d/%-m/%Y")    # Dạng không có số 0 đằng trước: 2/8/2026
+                d_str3 = selected_date_val.strftime("%Y-%m-%d")      # Dạng chuẩn nếu lưu dạng yyyy-mm-dd
 
-                st.markdown(f"### 📋 Báo cáo chi tiết ngày: **{d_str}**")
+                # Các cột tiến độ chính thường chứa mốc thời gian hoàn thành
+                target_date_columns = ["Nhận VT", "Nhận thiết bị", "Rải TB", "Rải thiết bị", "Lắp TB 5G", "Lắp đặt 5G", "BBNT Lắp đặt", "BBNT", "Phát sóng Test", "Phát sóng chính thức"]
+                
+                # Lọc thông minh: Chỉ tìm trong các cột tiến độ hoặc toàn bộ DataFrame nếu cần
+                mask = pd.Series(False, index=df_data.index)
+                for col in df_data.columns:
+                    col_str = df_data[col].astype(str).str.strip()
+                    # Kiểm tra xem ô nào có chứa ngày người dùng chọn hay không
+                    match_col = col_str.str.contains(f"{d_str1}|{d_str2}|{d_str3}", regex=True, na=False)
+                    mask = mask | match_col
+
+                df_day = df_data[mask]
+
+                st.markdown(f"### 📋 Báo cáo chi tiết ngày: **{selected_date_val.strftime('%d/%m/%Y')}**")
 
                 if not df_day.empty:
                     c1, c2 = st.columns(2)
@@ -236,7 +247,7 @@ else:
                     data_to_export = {}
 
                     for i, dt in enumerate(doi_tacs):
-                        df_sub = df_day[df_day[col_dt].astype(str).str.upper() == dt] if col_dt else pd.DataFrame()
+                        df_sub = df_day[df_day[col_dt].astype(str).str.strip().str.upper() == dt] if col_dt else pd.DataFrame()
                         data_to_export[dt] = df_sub
                         
                         with (c1 if i == 0 else c2):
@@ -246,7 +257,8 @@ else:
                             
                             st.markdown("**Danh sách trạm:**")
                             if not df_sub.empty:
-                                st.dataframe(df_sub[["Matram", "Phường xã"]], use_container_width=True, hide_index=True)
+                                cols_show = [c for c in ["Matram", "Phường xã", "Lắp TB 5G"] if c in df_sub.columns]
+                                st.dataframe(df_sub[cols_show], use_container_width=True, hide_index=True)
                             else:
                                 st.write("Không có dữ liệu.")
 
@@ -259,12 +271,12 @@ else:
                     st.download_button(
                         label="📥 Tải Báo Cáo Excel (VCC & VTK)",
                         data=buffer,
-                        file_name=f"BaoCao_Ngay_{d_str.replace('/','-')}.xlsx",
+                        file_name=f"BaoCao_Ngay_{selected_date_val.strftime('%d_%m_%Y')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         use_container_width=True
                     )
                 else:
-                    st.warning(f"Không có dữ liệu tiến độ trong ngày {d_str}")
+                    st.warning(f"Không có dữ liệu tiến độ trong ngày {selected_date_val.strftime('%d/%m/%Y')}")        
 
         st.markdown("---")
 
